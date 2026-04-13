@@ -21,13 +21,10 @@ def test_whoami_not_logged_in_prints_message():
 
 def test_whoami_prints_email():
     mock_creds = MagicMock()
-    mock_service = MagicMock()
-    mock_service.users().getProfile().execute.return_value = {
-        'emailAddress': 'user@example.com'
-    }
     with patch('gmail_cleaner.auth.load_token', return_value=mock_creds):
         with patch(
-            'gmail_cleaner.commands.whoami.build', return_value=mock_service
+            'gmail_cleaner.commands.whoami.gmail.get_user_email',
+            return_value='user@example.com',
         ):
             result = runner.invoke(app, ['whoami'])
     assert result.exit_code == 0

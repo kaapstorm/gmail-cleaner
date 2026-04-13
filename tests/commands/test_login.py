@@ -18,13 +18,10 @@ def tmp_dir():
 
 def test_login_already_logged_in_prints_message():
     mock_creds = MagicMock()
-    mock_service = MagicMock()
-    mock_service.users().getProfile().execute.return_value = {
-        'emailAddress': 'user@example.com'
-    }
     with patch('gmail_cleaner.auth.load_token', return_value=mock_creds):
         with patch(
-            'gmail_cleaner.commands.login.build', return_value=mock_service
+            'gmail_cleaner.commands.login.gmail.get_user_email',
+            return_value='user@example.com',
         ):
             result = runner.invoke(app, ['login'])
     assert result.exit_code == 0
@@ -61,10 +58,6 @@ def test_login_success_saves_token_and_prints_email():
     creds_path = d / 'credentials.json'
     creds_path.write_text('{}')
     mock_creds = MagicMock()
-    mock_service = MagicMock()
-    mock_service.users().getProfile().execute.return_value = {
-        'emailAddress': 'user@example.com'
-    }
     with patch('gmail_cleaner.auth.load_token', return_value=None):
         with patch(
             'gmail_cleaner.auth.get_credentials_path', return_value=creds_path
@@ -74,8 +67,8 @@ def test_login_success_saves_token_and_prints_email():
             ):
                 with patch('gmail_cleaner.auth.save_token') as mock_save:
                     with patch(
-                        'gmail_cleaner.commands.login.build',
-                        return_value=mock_service,
+                        'gmail_cleaner.commands.login.gmail.get_user_email',
+                        return_value='user@example.com',
                     ):
                         result = runner.invoke(app, ['login'])
     assert result.exit_code == 0

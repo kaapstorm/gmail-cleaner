@@ -1,15 +1,12 @@
 import typer
-from googleapiclient.discovery import build
 
-from gmail_cleaner import auth
+from gmail_cleaner import auth, gmail
 
 
 def login() -> None:
     creds = auth.load_token()
     if creds is not None:
-        service = build('gmail', 'v1', credentials=creds)
-        profile = service.users().getProfile(userId='me').execute()
-        typer.echo(f"Already logged in as {profile['emailAddress']}")
+        typer.echo(f'Already logged in as {gmail.get_user_email(creds)}')
         return
 
     creds_path = auth.get_credentials_path()
@@ -24,6 +21,4 @@ def login() -> None:
 
     creds = auth.run_oauth_flow()
     auth.save_token(creds)
-    service = build('gmail', 'v1', credentials=creds)
-    profile = service.users().getProfile(userId='me').execute()
-    typer.echo(f"Logged in as {profile['emailAddress']}")
+    typer.echo(f'Logged in as {gmail.get_user_email(creds)}')

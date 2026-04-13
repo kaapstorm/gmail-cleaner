@@ -1,7 +1,6 @@
 import typer
-from googleapiclient.discovery import build
 
-from gmail_cleaner import auth
+from gmail_cleaner import auth, gmail
 
 
 def whoami() -> None:
@@ -9,6 +8,4 @@ def whoami() -> None:
     if creds is None:
         typer.echo('Not logged in')
         raise typer.Exit(1)
-    service = build('gmail', 'v1', credentials=creds)
-    profile = service.users().getProfile(userId='me').execute()
-    typer.echo(profile['emailAddress'])
+    typer.echo(gmail.get_user_email(creds))
