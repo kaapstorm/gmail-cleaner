@@ -1,0 +1,2 @@
+def whoami() -> None:
+    pass
