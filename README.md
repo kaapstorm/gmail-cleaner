@@ -11,7 +11,9 @@ Setup
    https://developers.google.com/gmail/api/quickstart/python
 
 2. Download and save the OAuth client credentials in
-   `~/.config/gmail-cleaner/credentials.json`.
+   `~/.config/gmail-cleaner/credentials.json`. The file must only be
+   readable by the user (`chmod 600 ...`) because it contains secret
+   values.
 
 
 Usage
