@@ -1,6 +1,5 @@
 import json
 import os
-import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -8,7 +7,8 @@ import pytest
 from google.auth.exceptions import RefreshError, TransportError
 
 import gmail_cleaner.auth as auth
-from unmagic import fixture, use
+from tests.fixtures import tmp_dir
+from unmagic import use
 
 
 def test_get_credentials_path_default():
@@ -35,12 +35,6 @@ def test_get_token_path_custom_xdg():
     with patch.dict('os.environ', {'XDG_CONFIG_HOME': '/custom/config'}):
         result = auth.get_token_path()
     assert result == Path('/custom/config/gmail-cleaner/token.json')
-
-
-@fixture
-def tmp_dir():
-    with tempfile.TemporaryDirectory() as d:
-        yield Path(d)
 
 
 @use(tmp_dir)

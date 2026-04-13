@@ -1,19 +1,12 @@
-import tempfile
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
-from unmagic import fixture, use
+from unmagic import use
 
 from gmail_cleaner.cli import app
+from tests.fixtures import tmp_dir
 
 runner = CliRunner()
-
-
-@fixture
-def tmp_dir():
-    with tempfile.TemporaryDirectory() as d:
-        yield Path(d)
 
 
 def test_login_already_logged_in_prints_message():
