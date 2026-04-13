@@ -4,6 +4,9 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+from google.auth.exceptions import RefreshError, TransportError
+
 import gmail_cleaner.auth as auth
 from unmagic import fixture, use
 
@@ -105,3 +108,99 @@ def test_delete_token_idempotent():
     # file does not exist — should not raise
     with patch('gmail_cleaner.auth.get_token_path', return_value=token_path):
         auth.delete_token()
+
+
+@use(tmp_dir)
+def test_load_token_returns_none_when_no_file():
+    d = tmp_dir()
+    token_path = d / 'token.json'
+    with patch('gmail_cleaner.auth.get_token_path', return_value=token_path):
+        result = auth.load_token()
+    assert result is None
+
+
+@use(tmp_dir)
+def test_load_token_returns_none_on_corrupt_file():
+    d = tmp_dir()
+    token_path = d / 'token.json'
+    token_path.write_text('not valid json{')
+    with patch('gmail_cleaner.auth.get_token_path', return_value=token_path):
+        result = auth.load_token()
+    assert result is None
+
+
+@use(tmp_dir)
+def test_load_token_returns_valid_credentials():
+    d = tmp_dir()
+    token_path = d / 'token.json'
+    token_path.write_text('{}')
+    mock_creds = MagicMock()
+    mock_creds.valid = True
+    with patch('gmail_cleaner.auth.get_token_path', return_value=token_path):
+        with patch(
+            'gmail_cleaner.auth.Credentials.from_authorized_user_file',
+            return_value=mock_creds,
+        ):
+            result = auth.load_token()
+    assert result is mock_creds
+
+
+@use(tmp_dir)
+def test_load_token_refreshes_expired_credentials():
+    d = tmp_dir()
+    token_path = d / 'token.json'
+    token_path.write_text('{}')
+    mock_creds = MagicMock()
+    mock_creds.valid = False
+    mock_creds.expired = True
+    mock_creds.refresh_token = 'a_refresh_token'
+    mock_creds.to_json.return_value = '{}'
+    with patch('gmail_cleaner.auth.get_token_path', return_value=token_path):
+        with patch(
+            'gmail_cleaner.auth.Credentials.from_authorized_user_file',
+            return_value=mock_creds,
+        ):
+            with patch('gmail_cleaner.auth.Request'):
+                result = auth.load_token()
+    assert result is mock_creds
+    mock_creds.refresh.assert_called_once()
+
+
+@use(tmp_dir)
+def test_load_token_returns_none_on_refresh_error():
+    d = tmp_dir()
+    token_path = d / 'token.json'
+    token_path.write_text('{}')
+    mock_creds = MagicMock()
+    mock_creds.valid = False
+    mock_creds.expired = True
+    mock_creds.refresh_token = 'a_refresh_token'
+    mock_creds.refresh.side_effect = RefreshError('Token revoked')
+    with patch('gmail_cleaner.auth.get_token_path', return_value=token_path):
+        with patch(
+            'gmail_cleaner.auth.Credentials.from_authorized_user_file',
+            return_value=mock_creds,
+        ):
+            with patch('gmail_cleaner.auth.Request'):
+                result = auth.load_token()
+    assert result is None
+
+
+@use(tmp_dir)
+def test_load_token_propagates_transport_error():
+    d = tmp_dir()
+    token_path = d / 'token.json'
+    token_path.write_text('{}')
+    mock_creds = MagicMock()
+    mock_creds.valid = False
+    mock_creds.expired = True
+    mock_creds.refresh_token = 'a_refresh_token'
+    mock_creds.refresh.side_effect = TransportError('Network down')
+    with patch('gmail_cleaner.auth.get_token_path', return_value=token_path):
+        with patch(
+            'gmail_cleaner.auth.Credentials.from_authorized_user_file',
+            return_value=mock_creds,
+        ):
+            with patch('gmail_cleaner.auth.Request'):
+                with pytest.raises(TransportError):
+                    auth.load_token()
