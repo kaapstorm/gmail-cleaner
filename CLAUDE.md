@@ -5,6 +5,18 @@
 Tests use pytest and
 [pytest-unmagic](https://github.com/kaapstorm/pytest-unmagic/tree/nh/docs_5/)
 
+Use pytest's parametrized tests to deduplicate tests that have the same
+structure.
+
+## Keep it clean
+
+Before editing a Python module, format it with `ruff` and sort imports.
+If there are changes, commit them. After your edits, format with ruff
+and sort imports again before committing.
+
+Commit moves and renames separate from changes, so that the diff of the
+changes is clear.
+
 ## Commands
 
 The project uses a uv virtualenv. Prefix commands with `uv run ...` to
@@ -19,7 +31,7 @@ run commands in the virtualenv.
 
 ## Project structure
 
-### Agent documentation
+### Specs and plans
 
 | Path                                   | Purpose              |
 |----------------------------------------|----------------------|
