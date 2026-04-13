@@ -43,3 +43,7 @@ line-length = 79
 
 [tool.ruff.format]
 quote-style = "single"
+
+[[tool.mypy.overrides]]
+module = ["google.*", "google_auth_oauthlib.*", "googleapiclient.*"]
+ignore_missing_imports = true

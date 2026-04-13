@@ -204,3 +204,21 @@ def test_load_token_propagates_transport_error():
             with patch('gmail_cleaner.auth.Request'):
                 with pytest.raises(TransportError):
                     auth.load_token()
+
+
+@use(tmp_dir)
+def test_run_oauth_flow_returns_credentials():
+    d = tmp_dir()
+    creds_path = d / 'credentials.json'
+    mock_flow = MagicMock()
+    mock_creds = MagicMock()
+    mock_flow.run_local_server.return_value = mock_creds
+    with patch('gmail_cleaner.auth.get_credentials_path', return_value=creds_path):
+        with patch(
+            'gmail_cleaner.auth.InstalledAppFlow.from_client_secrets_file',
+            return_value=mock_flow,
+        ) as mock_flow_cls:
+            result = auth.run_oauth_flow()
+    mock_flow_cls.assert_called_once_with(str(creds_path), auth.SCOPES)
+    mock_flow.run_local_server.assert_called_once_with(port=0)
+    assert result is mock_creds

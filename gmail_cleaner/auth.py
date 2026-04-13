@@ -4,6 +4,7 @@ from pathlib import Path
 from google.auth.exceptions import RefreshError
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
 
 SCOPES = [
     'https://mail.google.com/',
@@ -66,3 +67,10 @@ def load_token() -> Credentials | None:
         save_token(creds)
         return creds
     return None
+
+
+def run_oauth_flow() -> Credentials:
+    flow = InstalledAppFlow.from_client_secrets_file(
+        str(get_credentials_path()), SCOPES
+    )
+    return flow.run_local_server(port=0)
