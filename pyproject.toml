@@ -5,3 +5,24 @@ description = "A set of command line tools for cleaning GMail"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = []
+
+[dependency-groups]
+dev = [
+    {include-group = "test"},
+    "ipython",
+]
+test = [
+    "mypy",
+    "pytest",
+    "pytest-unmagic",
+    "ruff",
+]
+
+[tool.uv.sources]
+pytest-unmagic = { git = "https://github.com/kaapstorm/pytest-unmagic.git", branch = "nh/docs_5" }
+
+[tool.ruff]
+line-length = 79
+
+[tool.ruff.format]
+quote-style = "single"
