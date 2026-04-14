@@ -24,23 +24,16 @@ def test_old_labels_bad_age_exits_with_usage_error():
 
 def test_old_labels_lists_only_labels_with_no_recent_messages():
     mock_creds = MagicMock()
-    labels = [
+    old = [
         {'id': 'L1', 'name': 'Apple', 'type': 'user'},
-        {'id': 'L2', 'name': 'Banana', 'type': 'user'},
         {'id': 'L3', 'name': 'Cherry', 'type': 'user'},
     ]
-    # Apple and Cherry have no recent messages; Banana does.
-    has_recent = {'L1': False, 'L2': True, 'L3': False}
     with patch('gmail_cleaner.auth.load_token', return_value=mock_creds):
         with patch(
-            'gmail_cleaner.commands.old_labels.gmail.list_user_labels',
-            return_value=labels,
+            'gmail_cleaner.commands.old_labels.gmail.find_old_labels',
+            return_value=(old, 3),
         ):
-            with patch(
-                'gmail_cleaner.commands.old_labels.gmail.label_has_recent_message',
-                side_effect=lambda _c, label_id, _a: has_recent[label_id],
-            ):
-                result = runner.invoke(app, ['old-labels'])
+            result = runner.invoke(app, ['old-labels'])
     assert result.exit_code == 0
     assert result.stdout.splitlines() == ['Apple', 'Cherry']
     assert '2 of 3 labels have no messages newer than 2y' in result.stderr
@@ -50,8 +43,8 @@ def test_old_labels_summary_uses_custom_age():
     mock_creds = MagicMock()
     with patch('gmail_cleaner.auth.load_token', return_value=mock_creds):
         with patch(
-            'gmail_cleaner.commands.old_labels.gmail.list_user_labels',
-            return_value=[],
+            'gmail_cleaner.commands.old_labels.gmail.find_old_labels',
+            return_value=([], 0),
         ):
             result = runner.invoke(app, ['old-labels', '--age', '6m'])
     assert result.exit_code == 0

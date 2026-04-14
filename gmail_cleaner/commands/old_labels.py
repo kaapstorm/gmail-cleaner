@@ -28,16 +28,10 @@ def old_labels(
         typer.echo('Not logged in')
         raise typer.Exit(1)
 
-    labels = gmail.list_user_labels(creds)
-    old = [
-        label
-        for label in labels
-        if not gmail.label_has_recent_message(creds, label['id'], age)
-    ]
+    old, total = gmail.find_old_labels(creds, age)
     for label in old:
         typer.echo(label['name'])
     typer.echo(
-        f'{len(old)} of {len(labels)} labels have no messages '
-        f'newer than {age}',
+        f'{len(old)} of {total} labels have no messages newer than {age}',
         err=True,
     )

@@ -28,7 +28,6 @@ def test_get_user_email_returns_email_address():
 
 
 def test_list_user_labels_filters_to_user_type_and_sorts_by_name():
-    mock_creds = MagicMock()
     mock_service = MagicMock()
     mock_service.users().labels().list().execute.return_value = {
         'labels': [
@@ -37,8 +36,7 @@ def test_list_user_labels_filters_to_user_type_and_sorts_by_name():
             {'id': 'Label_1', 'name': 'Apple', 'type': 'user'},
         ],
     }
-    with patch('gmail_cleaner.gmail.build', return_value=mock_service):
-        result = gmail.list_user_labels(mock_creds)
+    result = gmail._list_user_labels(mock_service)
     assert [label['name'] for label in result] == ['Apple', 'Zebra']
     assert all(label['type'] == 'user' for label in result)
 
@@ -52,32 +50,48 @@ def test_list_user_labels_filters_to_user_type_and_sorts_by_name():
     ],
 )
 def test_label_has_recent_message(response, expected):
-    mock_creds = MagicMock()
     mock_service = MagicMock()
     mock_service.users().messages().list().execute.return_value = response
-    with patch('gmail_cleaner.gmail.build', return_value=mock_service):
-        result = gmail.label_has_recent_message(
-            mock_creds,
-            'Label_1',
-            '2y',
-        )
+    result = gmail._label_has_recent_message(mock_service, 'Label_1', '2y')
     assert result is expected
 
 
 def test_label_has_recent_message_passes_label_id_and_age():
-    mock_creds = MagicMock()
     mock_service = MagicMock()
     mock_service.users().messages().list().execute.return_value = {
         'messages': [{'id': 'm1'}],
     }
-    with patch('gmail_cleaner.gmail.build', return_value=mock_service):
-        gmail.label_has_recent_message(mock_creds, 'Label_1', '30d')
+    gmail._label_has_recent_message(mock_service, 'Label_1', '30d')
     mock_service.users().messages().list.assert_called_with(
         userId='me',
         labelIds=['Label_1'],
         q='newer_than:30d',
         maxResults=1,
     )
+
+
+def test_find_old_labels_returns_old_labels_and_total():
+    mock_creds = MagicMock()
+    labels = [
+        {'id': 'L1', 'name': 'Apple', 'type': 'user'},
+        {'id': 'L2', 'name': 'Banana', 'type': 'user'},
+        {'id': 'L3', 'name': 'Cherry', 'type': 'user'},
+    ]
+    has_recent = {'L1': False, 'L2': True, 'L3': False}
+    with (
+        patch('gmail_cleaner.gmail.build') as mock_build,
+        patch(
+            'gmail_cleaner.gmail._list_user_labels',
+            return_value=labels,
+        ),
+        patch(
+            'gmail_cleaner.gmail._label_has_recent_message',
+            side_effect=lambda _s, label_id, _a: has_recent[label_id],
+        ),
+    ):
+        old, total = gmail.find_old_labels(mock_creds, '2y')
+    assert [label['name'] for label in old] == ['Apple', 'Cherry']
+    assert total == 3
 
 
 def test_search_messages_returns_ids_and_estimate():

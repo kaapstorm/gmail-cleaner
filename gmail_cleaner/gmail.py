@@ -12,8 +12,7 @@ def get_user_email(creds: Credentials) -> str:
     return profile['emailAddress']
 
 
-def list_user_labels(creds: Credentials) -> list[dict]:
-    service = build_service(creds)
+def _list_user_labels(service) -> list[dict]:
     response = service.users().labels().list(userId='me').execute()
     user_labels = [
         label
@@ -23,12 +22,11 @@ def list_user_labels(creds: Credentials) -> list[dict]:
     return sorted(user_labels, key=lambda label: label['name'])
 
 
-def label_has_recent_message(
-    creds: Credentials,
+def _label_has_recent_message(
+    service,
     label_id: str,
     age: str,
 ) -> bool:
-    service = build_service(creds)
     response = (
         service.users()
         .messages()
@@ -41,6 +39,20 @@ def label_has_recent_message(
         .execute()
     )
     return bool(response.get('messages'))
+
+
+def find_old_labels(
+    creds: Credentials,
+    age: str,
+) -> tuple[list[dict], int]:
+    service = build_service(creds)
+    labels = _list_user_labels(service)
+    old = [
+        label
+        for label in labels
+        if not _label_has_recent_message(service, label['id'], age)
+    ]
+    return old, len(labels)
 
 
 def search_messages(
