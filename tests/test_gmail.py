@@ -23,3 +23,19 @@ def test_get_user_email_returns_email_address():
     with patch('gmail_cleaner.gmail.build', return_value=mock_service):
         result = gmail.get_user_email(mock_creds)
     assert result == 'user@example.com'
+
+
+def test_list_user_labels_filters_to_user_type_and_sorts_by_name():
+    mock_creds = MagicMock()
+    mock_service = MagicMock()
+    mock_service.users().labels().list().execute.return_value = {
+        'labels': [
+            {'id': 'Label_2', 'name': 'Zebra', 'type': 'user'},
+            {'id': 'INBOX', 'name': 'INBOX', 'type': 'system'},
+            {'id': 'Label_1', 'name': 'Apple', 'type': 'user'},
+        ],
+    }
+    with patch('gmail_cleaner.gmail.build', return_value=mock_service):
+        result = gmail.list_user_labels(mock_creds)
+    assert [label['name'] for label in result] == ['Apple', 'Zebra']
+    assert all(label['type'] == 'user' for label in result)
