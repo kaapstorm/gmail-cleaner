@@ -63,3 +63,30 @@ def search_messages(
     ids = [m['id'] for m in response.get('messages', [])]
     estimate = response.get('resultSizeEstimate', 0)
     return ids, estimate
+
+
+_WANTED_HEADERS = ('Date', 'From', 'Subject')
+
+
+def get_message_headers(
+    creds: Credentials,
+    message_id: str,
+) -> dict[str, str]:
+    service = build_service(creds)
+    response = (
+        service.users()
+        .messages()
+        .get(
+            userId='me',
+            id=message_id,
+            format='metadata',
+            metadataHeaders=list(_WANTED_HEADERS),
+        )
+        .execute()
+    )
+    found = {
+        header['name']: header['value']
+        for header in response.get('payload', {}).get('headers', [])
+        if header['name'] in _WANTED_HEADERS
+    }
+    return {name: found.get(name, '') for name in _WANTED_HEADERS}
