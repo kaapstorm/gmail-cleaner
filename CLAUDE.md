@@ -17,6 +17,26 @@ and sort imports again before committing.
 Commit moves and renames separate from changes, so that the diff of the
 changes is clear.
 
+## Formatting
+
+Items in lists, tuples, dicts, and parameters, that are formatted on
+their own line should end with a comma, e.g.
+```python
+def do_something(
+    param1: str, param2: int, param3: bool,
+    # ^^^ params on their own line end with `,`
+) -> None:
+    foo = {
+        'one': 1, 'two': 2, 'three': 3,
+        # ^^^ items on their own line end with `,`
+    }
+
+def do_something_else(param1, param2, param3):  # share a line, no comma
+    bar = {'one': 1, 'two': 2, 'three': 3}  # share a line, no comma
+```
+The reason for this is that `ruff` will break the items onto their own
+lines.
+
 ## Commands
 
 The project uses a uv virtualenv. Prefix commands with `uv run ...` to
