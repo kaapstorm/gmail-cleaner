@@ -21,3 +21,23 @@ def list_user_labels(creds: Credentials) -> list[dict]:
         if label.get('type') == 'user'
     ]
     return sorted(user_labels, key=lambda label: label['name'])
+
+
+def label_has_recent_message(
+    creds: Credentials,
+    label_id: str,
+    age: str,
+) -> bool:
+    service = build_service(creds)
+    response = (
+        service.users()
+        .messages()
+        .list(
+            userId='me',
+            labelIds=[label_id],
+            q=f'newer_than:{age}',
+            maxResults=1,
+        )
+        .execute()
+    )
+    return bool(response.get('messages'))
