@@ -41,3 +41,25 @@ def label_has_recent_message(
         .execute()
     )
     return bool(response.get('messages'))
+
+
+def search_messages(
+    creds: Credentials,
+    query: str,
+    *,
+    max_results: int,
+) -> tuple[list[str], int]:
+    service = build_service(creds)
+    response = (
+        service.users()
+        .messages()
+        .list(
+            userId='me',
+            q=query,
+            maxResults=max_results,
+        )
+        .execute()
+    )
+    ids = [m['id'] for m in response.get('messages', [])]
+    estimate = response.get('resultSizeEstimate', 0)
+    return ids, estimate

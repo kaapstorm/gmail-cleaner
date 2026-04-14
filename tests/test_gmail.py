@@ -78,3 +78,51 @@ def test_label_has_recent_message_passes_label_id_and_age():
         q='newer_than:30d',
         maxResults=1,
     )
+
+
+def test_search_messages_returns_ids_and_estimate():
+    mock_creds = MagicMock()
+    mock_service = MagicMock()
+    mock_service.users().messages().list().execute.return_value = {
+        'messages': [{'id': 'm1'}, {'id': 'm2'}],
+        'resultSizeEstimate': 42,
+    }
+    with patch('gmail_cleaner.gmail.build', return_value=mock_service):
+        ids, estimate = gmail.search_messages(
+            mock_creds,
+            'in:inbox',
+            max_results=10,
+        )
+    assert ids == ['m1', 'm2']
+    assert estimate == 42
+
+
+def test_search_messages_handles_empty_response():
+    mock_creds = MagicMock()
+    mock_service = MagicMock()
+    mock_service.users().messages().list().execute.return_value = {
+        'resultSizeEstimate': 0,
+    }
+    with patch('gmail_cleaner.gmail.build', return_value=mock_service):
+        ids, estimate = gmail.search_messages(
+            mock_creds,
+            'in:inbox',
+            max_results=10,
+        )
+    assert ids == []
+    assert estimate == 0
+
+
+def test_search_messages_passes_query_and_max_results():
+    mock_creds = MagicMock()
+    mock_service = MagicMock()
+    mock_service.users().messages().list().execute.return_value = {
+        'resultSizeEstimate': 0,
+    }
+    with patch('gmail_cleaner.gmail.build', return_value=mock_service):
+        gmail.search_messages(mock_creds, 'older_than:1y', max_results=100)
+    mock_service.users().messages().list.assert_called_with(
+        userId='me',
+        q='older_than:1y',
+        maxResults=100,
+    )
