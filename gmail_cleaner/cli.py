@@ -1,5 +1,6 @@
 import typer
 
+from gmail_cleaner.commands.list_query import list_query
 from gmail_cleaner.commands.login import login
 from gmail_cleaner.commands.logout import logout
 from gmail_cleaner.commands.old_labels import old_labels
@@ -15,3 +16,6 @@ app.command(help='Remove saved credentials.')(logout)
 app.command(
     help='List user labels whose most recent message is older than --age.',
 )(old_labels)
+app.command(
+    help='Show the count and first 10 messages matching a Gmail query.',
+)(list_query)
