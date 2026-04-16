@@ -392,3 +392,107 @@ def test_delete_message_batches_propagates_after_retries():
             (f'm{i}' for i in range(600)),  # forces 2 batches
             on_progress=lambda _d: None,
         )
+
+
+def test_scan_for_messages_returns_estimate_and_has_results():
+    creds = MagicMock()
+    mock_service = MagicMock()
+    mock_service.users().messages().list().execute.return_value = {
+        'messages': [{'id': 'm1'}],
+        'resultSizeEstimate': 42,
+        'nextPageToken': 'tok',
+    }
+    with patch(
+        'gmail_cleaner.gmail.build_service',
+        return_value=mock_service,
+    ):
+        estimate, has_results = gmail.scan_for_messages(creds, 'in:inbox')
+    assert estimate == 42
+    assert has_results is True
+
+
+def test_scan_for_messages_empty_first_page_no_token():
+    creds = MagicMock()
+    mock_service = MagicMock()
+    mock_service.users().messages().list().execute.return_value = {
+        'resultSizeEstimate': 0,
+    }
+    with patch(
+        'gmail_cleaner.gmail.build_service',
+        return_value=mock_service,
+    ):
+        estimate, has_results = gmail.scan_for_messages(creds, 'in:inbox')
+    assert estimate == 0
+    assert has_results is False
+
+
+def test_scan_for_messages_empty_first_page_with_token():
+    creds = MagicMock()
+    mock_service = MagicMock()
+    mock_service.users().messages().list().execute.return_value = {
+        'resultSizeEstimate': 5,
+        'nextPageToken': 'tok',
+    }
+    with patch(
+        'gmail_cleaner.gmail.build_service',
+        return_value=mock_service,
+    ):
+        estimate, has_results = gmail.scan_for_messages(creds, 'in:inbox')
+    assert estimate == 5
+    assert has_results is True
+
+
+def test_scan_for_messages_messages_present_estimate_zero():
+    creds = MagicMock()
+    mock_service = MagicMock()
+    mock_service.users().messages().list().execute.return_value = {
+        'messages': [{'id': 'm1'}],
+        'resultSizeEstimate': 0,
+    }
+    with patch(
+        'gmail_cleaner.gmail.build_service',
+        return_value=mock_service,
+    ):
+        estimate, has_results = gmail.scan_for_messages(creds, 'in:inbox')
+    assert estimate == 0
+    assert has_results is True
+
+
+def test_delete_messages_matching_paginates_and_deletes():
+    creds = MagicMock()
+    mock_service = MagicMock()
+    mock_service.users().messages().list().execute.return_value = {
+        'messages': [{'id': f'm{i}'} for i in range(3)],
+    }
+    mock_service.users().messages().list_next.return_value = None
+    progress = []
+    with patch(
+        'gmail_cleaner.gmail.build_service',
+        return_value=mock_service,
+    ):
+        deleted = gmail.delete_messages_matching(
+            creds,
+            'in:inbox',
+            on_progress=progress.append,
+        )
+    assert deleted == 3
+    assert progress == [3]
+    mock_service.users().messages().batchDelete.assert_called_once()
+
+
+def test_delete_messages_matching_empty():
+    creds = MagicMock()
+    mock_service = MagicMock()
+    mock_service.users().messages().list().execute.return_value = {}
+    mock_service.users().messages().list_next.return_value = None
+    with patch(
+        'gmail_cleaner.gmail.build_service',
+        return_value=mock_service,
+    ):
+        deleted = gmail.delete_messages_matching(
+            creds,
+            'in:inbox',
+            on_progress=lambda _d: None,
+        )
+    assert deleted == 0
+    mock_service.users().messages().batchDelete.assert_not_called()

@@ -160,6 +160,33 @@ def search_messages(
     return ids, estimate
 
 
+def scan_for_messages(creds, query: str) -> tuple[int, bool]:
+    service = build_service(creds)
+    response = (
+        service.users()
+        .messages()
+        .list(userId='me', q=query, maxResults=_LIST_PAGE_SIZE)
+        .execute()
+    )
+    estimate = response.get('resultSizeEstimate', 0)
+    has_results = bool(response.get('messages')) or 'nextPageToken' in response
+    return estimate, has_results
+
+
+def delete_messages_matching(
+    creds,
+    query: str,
+    *,
+    on_progress: Callable[[int], None],
+) -> int:
+    service = build_service(creds)
+    return _delete_message_batches(
+        service,
+        _iter_message_ids(service, query),
+        on_progress=on_progress,
+    )
+
+
 _WANTED_HEADERS = ('Date', 'From', 'Subject')
 
 
