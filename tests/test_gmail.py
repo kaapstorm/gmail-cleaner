@@ -316,3 +316,79 @@ def test_iter_message_ids_is_lazy():
     # Now drain the rest.
     assert list(it) == ['m2']
     assert second_request.execute.call_count == 1
+
+
+def test_delete_message_batches_groups_by_500():
+    mock_service = MagicMock()
+    ids = [f'm{i}' for i in range(750)]
+    progress = []
+    total = gmail._delete_message_batches(
+        mock_service,
+        ids,
+        on_progress=progress.append,
+    )
+    batch_delete = mock_service.users().messages().batchDelete
+    assert batch_delete.call_count == 2
+    assert len(batch_delete.call_args_list[0].kwargs['body']['ids']) == 500
+    assert len(batch_delete.call_args_list[1].kwargs['body']['ids']) == 250
+    assert progress == [500, 750]
+    assert total == 750
+
+
+def test_delete_message_batches_empty_is_noop():
+    mock_service = MagicMock()
+    progress = []
+    total = gmail._delete_message_batches(
+        mock_service,
+        iter([]),
+        on_progress=progress.append,
+    )
+    mock_service.users().messages().batchDelete.assert_not_called()
+    assert progress == []
+    assert total == 0
+
+
+def test_delete_message_batches_consumes_generator():
+    def gen():
+        yield from (f'm{i}' for i in range(3))
+
+    mock_service = MagicMock()
+    total = gmail._delete_message_batches(
+        mock_service,
+        gen(),
+        on_progress=lambda _d: None,
+    )
+    assert total == 3
+    assert mock_service.users().messages().batchDelete.call_count == 1
+
+
+@use(no_sleep)
+def test_delete_message_batches_retries_failed_batch():
+    mock_service = MagicMock()
+    err = HttpError(MagicMock(status=500), b'')
+    mock_service.users().messages().batchDelete().execute.side_effect = [
+        err,
+        None,
+    ]
+    total = gmail._delete_message_batches(
+        mock_service,
+        ['m1'],
+        on_progress=lambda _d: None,
+    )
+    assert total == 1
+    assert (
+        mock_service.users().messages().batchDelete().execute.call_count == 2
+    )
+
+
+@use(no_sleep)
+def test_delete_message_batches_propagates_after_retries():
+    mock_service = MagicMock()
+    err = HttpError(MagicMock(status=500), b'')
+    mock_service.users().messages().batchDelete().execute.side_effect = err
+    with pytest.raises(HttpError):
+        gmail._delete_message_batches(
+            mock_service,
+            (f'm{i}' for i in range(600)),  # forces 2 batches
+            on_progress=lambda _d: None,
+        )

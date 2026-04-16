@@ -1,5 +1,5 @@
 import time
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from typing import Any, Callable, TypeVar
 
 from google.oauth2.credentials import Credentials
@@ -8,6 +8,7 @@ from googleapiclient.errors import HttpError
 
 _RETRY_DELAYS = (2.5, 5.0)
 _LIST_PAGE_SIZE = 500
+_DELETE_BATCH_SIZE = 500
 
 T = TypeVar('T')
 
@@ -51,6 +52,37 @@ def _iter_message_ids(service, query: str) -> Iterator[str]:
             .messages()
             .list_next(previous_request=request, previous_response=response)
         )
+
+
+def _batch_delete(service, batch: list[str]) -> None:
+    (
+        service.users()
+        .messages()
+        .batchDelete(userId='me', body={'ids': batch})
+        .execute()
+    )
+
+
+def _delete_message_batches(
+    service,
+    message_ids: Iterable[str],
+    *,
+    on_progress: Callable[[int], None],
+) -> int:
+    deleted = 0
+    batch: list[str] = []
+    for mid in message_ids:
+        batch.append(mid)
+        if len(batch) >= _DELETE_BATCH_SIZE:
+            _with_retry(_batch_delete, service, batch)
+            deleted += len(batch)
+            on_progress(deleted)
+            batch = []
+    if batch:
+        _with_retry(_batch_delete, service, batch)
+        deleted += len(batch)
+        on_progress(deleted)
+    return deleted
 
 
 def build_service(creds: Credentials):
