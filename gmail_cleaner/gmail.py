@@ -1,5 +1,37 @@
+import time
+from typing import Any, Callable, TypeVar
+
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+
+_RETRY_DELAYS = (2.5, 5.0)
+
+T = TypeVar('T')
+
+
+def _is_retryable(exc: BaseException) -> bool:
+    if isinstance(exc, (OSError, TimeoutError)):
+        return True
+    if isinstance(exc, HttpError):
+        status = getattr(exc.resp, 'status', None)
+        return status == 429 or (status is not None and status >= 500)
+    return False
+
+
+def _with_retry(fn: Callable[..., T], *args: Any, **kwargs: Any) -> T:
+    last_exc: BaseException | None = None
+    for delay in (0.0, *_RETRY_DELAYS):
+        if delay:
+            time.sleep(delay)
+        try:
+            return fn(*args, **kwargs)
+        except Exception as exc:
+            if not _is_retryable(exc):
+                raise
+            last_exc = exc
+    assert last_exc is not None
+    raise last_exc
 
 
 def build_service(creds: Credentials):

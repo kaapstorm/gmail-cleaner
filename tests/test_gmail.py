@@ -1,8 +1,18 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from googleapiclient.errors import HttpError
+from unmagic import fixture, use
 
 from gmail_cleaner import gmail
+
+monkeypatch = fixture('monkeypatch')
+
+
+@fixture
+def no_sleep():
+    monkeypatch().setattr('gmail_cleaner.gmail.time.sleep', lambda _s: None)
+    yield
 
 
 def test_build_service_calls_build():
@@ -189,3 +199,55 @@ def test_get_message_headers_uses_metadata_format():
         format='metadata',
         metadataHeaders=['Date', 'From', 'Subject'],
     )
+
+
+def test_with_retry_returns_value_on_first_success():
+    result = gmail._with_retry(lambda: 'ok')
+    assert result == 'ok'
+
+
+@use(no_sleep)
+def test_with_retry_retries_on_5xx():
+    fn = MagicMock(
+        side_effect=[
+            HttpError(MagicMock(status=503), b''),
+            'ok',
+        ],
+    )
+    assert gmail._with_retry(fn) == 'ok'
+    assert fn.call_count == 2
+
+
+@use(no_sleep)
+def test_with_retry_retries_on_429():
+    fn = MagicMock(
+        side_effect=[
+            HttpError(MagicMock(status=429), b''),
+            'ok',
+        ],
+    )
+    assert gmail._with_retry(fn) == 'ok'
+
+
+def test_with_retry_does_not_retry_on_403():
+    err = HttpError(MagicMock(status=403), b'')
+    fn = MagicMock(side_effect=err)
+    with pytest.raises(HttpError):
+        gmail._with_retry(fn)
+    assert fn.call_count == 1
+
+
+def test_with_retry_does_not_retry_on_value_error():
+    fn = MagicMock(side_effect=ValueError('bug'))
+    with pytest.raises(ValueError):
+        gmail._with_retry(fn)
+    assert fn.call_count == 1
+
+
+@use(no_sleep)
+def test_with_retry_raises_after_all_attempts_fail():
+    err = HttpError(MagicMock(status=500), b'')
+    fn = MagicMock(side_effect=err)
+    with pytest.raises(HttpError):
+        gmail._with_retry(fn)
+    assert fn.call_count == 3
