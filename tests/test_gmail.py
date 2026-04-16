@@ -251,3 +251,68 @@ def test_with_retry_raises_after_all_attempts_fail():
     with pytest.raises(HttpError):
         gmail._with_retry(fn)
     assert fn.call_count == 3
+
+
+def test_iter_message_ids_single_page():
+    mock_service = MagicMock()
+    mock_service.users().messages().list().execute.return_value = {
+        'messages': [{'id': 'm1'}, {'id': 'm2'}],
+    }
+    mock_service.users().messages().list_next.return_value = None
+    assert list(gmail._iter_message_ids(mock_service, 'in:inbox')) == [
+        'm1',
+        'm2',
+    ]
+
+
+def test_iter_message_ids_paginates():
+    mock_service = MagicMock()
+    page1 = {'messages': [{'id': 'm1'}], 'nextPageToken': 'tok'}
+    page2 = {'messages': [{'id': 'm2'}]}
+
+    first_request = MagicMock()
+    first_request.execute.return_value = page1
+    mock_service.users().messages().list.return_value = first_request
+
+    second_request = MagicMock()
+    second_request.execute.return_value = page2
+    mock_service.users().messages().list_next.side_effect = [
+        second_request,
+        None,
+    ]
+
+    assert list(gmail._iter_message_ids(mock_service, 'in:inbox')) == [
+        'm1',
+        'm2',
+    ]
+
+
+def test_iter_message_ids_empty():
+    mock_service = MagicMock()
+    mock_service.users().messages().list().execute.return_value = {}
+    mock_service.users().messages().list_next.return_value = None
+    assert list(gmail._iter_message_ids(mock_service, 'in:inbox')) == []
+
+
+def test_iter_message_ids_is_lazy():
+    mock_service = MagicMock()
+    page1 = {'messages': [{'id': 'm1'}], 'nextPageToken': 'tok'}
+    page2 = {'messages': [{'id': 'm2'}]}
+    first_request = MagicMock()
+    first_request.execute.return_value = page1
+    mock_service.users().messages().list.return_value = first_request
+    second_request = MagicMock()
+    second_request.execute.return_value = page2
+    mock_service.users().messages().list_next.side_effect = [
+        second_request,
+        None,
+    ]
+
+    it = gmail._iter_message_ids(mock_service, 'in:inbox')
+    # Drain only first page.
+    assert next(it) == 'm1'
+    # Second page must not have been fetched yet.
+    assert second_request.execute.call_count == 0
+    # Now drain the rest.
+    assert list(it) == ['m2']
+    assert second_request.execute.call_count == 1

@@ -1,4 +1,5 @@
 import time
+from collections.abc import Iterator
 from typing import Any, Callable, TypeVar
 
 from google.oauth2.credentials import Credentials
@@ -6,6 +7,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 _RETRY_DELAYS = (2.5, 5.0)
+_LIST_PAGE_SIZE = 500
 
 T = TypeVar('T')
 
@@ -32,6 +34,23 @@ def _with_retry(fn: Callable[..., T], *args: Any, **kwargs: Any) -> T:
             last_exc = exc
     assert last_exc is not None
     raise last_exc
+
+
+def _iter_message_ids(service, query: str) -> Iterator[str]:
+    request = (
+        service.users()
+        .messages()
+        .list(userId='me', q=query, maxResults=_LIST_PAGE_SIZE)
+    )
+    while request is not None:
+        response = request.execute()
+        for m in response.get('messages', []):
+            yield m['id']
+        request = (
+            service.users()
+            .messages()
+            .list_next(previous_request=request, previous_response=response)
+        )
 
 
 def build_service(creds: Credentials):
