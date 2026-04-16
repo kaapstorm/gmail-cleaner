@@ -556,3 +556,162 @@ def test_delete_label_by_id_retries_on_5xx():
     mock_service.users().labels().delete().execute.side_effect = [err, None]
     gmail._delete_label_by_id(mock_service, 'Label_1')
     assert mock_service.users().labels().delete().execute.call_count == 2
+
+
+def test_find_label_returns_none_when_not_found():
+    creds = MagicMock()
+    mock_service = MagicMock()
+    with (
+        patch(
+            'gmail_cleaner.gmail.build_service',
+            return_value=mock_service,
+        ),
+        patch(
+            'gmail_cleaner.gmail._list_user_labels',
+            return_value=[
+                {'id': 'L1', 'name': 'Other', 'type': 'user'},
+            ],
+        ),
+    ):
+        assert gmail.find_label(creds, 'MySpace') is None
+
+
+def test_find_label_returns_label_estimate_and_has_messages():
+    creds = MagicMock()
+    mock_service = MagicMock()
+    label = {'id': 'L1', 'name': 'MySpace', 'type': 'user'}
+    mock_service.users().messages().list().execute.return_value = {
+        'messages': [{'id': 'm1'}],
+        'resultSizeEstimate': 7,
+    }
+    with (
+        patch(
+            'gmail_cleaner.gmail.build_service',
+            return_value=mock_service,
+        ),
+        patch(
+            'gmail_cleaner.gmail._list_user_labels',
+            return_value=[label],
+        ),
+    ):
+        result = gmail.find_label(creds, 'MySpace')
+    assert result is not None
+    found_label, estimate, has_messages = result
+    assert found_label == label
+    assert estimate == 7
+    assert has_messages is True
+
+
+def test_delete_label_completely_deletes_messages_filters_and_label():
+    creds = MagicMock()
+    mock_service = MagicMock()
+    label = {'id': 'L1', 'name': 'MySpace', 'type': 'user'}
+    mock_service.users().messages().list().execute.return_value = {
+        'messages': [{'id': 'm1'}, {'id': 'm2'}],
+    }
+    mock_service.users().messages().list_next.return_value = None
+    filters = [
+        {'id': 'f1', 'action': {'addLabelIds': ['L1']}},
+        {'id': 'f2', 'action': {'addLabelIds': ['L2']}},
+        {'id': 'f3', 'action': {'addLabelIds': ['L1', 'L2']}},
+    ]
+    with (
+        patch(
+            'gmail_cleaner.gmail.build_service',
+            return_value=mock_service,
+        ),
+        patch('gmail_cleaner.gmail._list_filters', return_value=filters),
+        patch('gmail_cleaner.gmail._delete_filter') as del_filter,
+        patch('gmail_cleaner.gmail._delete_label_by_id') as del_label,
+    ):
+        msgs, fs = gmail.delete_label_completely(
+            creds,
+            label,
+            on_progress=lambda _d: None,
+        )
+    assert msgs == 2
+    assert fs == 2
+    assert del_filter.call_count == 2
+    del_label.assert_called_once_with(mock_service, 'L1')
+
+
+def test_delete_label_completely_handles_filters_without_action():
+    creds = MagicMock()
+    mock_service = MagicMock()
+    label = {'id': 'L1', 'name': 'X', 'type': 'user'}
+    mock_service.users().messages().list().execute.return_value = {}
+    mock_service.users().messages().list_next.return_value = None
+    filters = [
+        {'id': 'f1'},
+        {'id': 'f2', 'action': {}},
+        {'id': 'f3', 'action': {'addLabelIds': ['L1']}},
+    ]
+    with (
+        patch(
+            'gmail_cleaner.gmail.build_service',
+            return_value=mock_service,
+        ),
+        patch('gmail_cleaner.gmail._list_filters', return_value=filters),
+        patch('gmail_cleaner.gmail._delete_filter') as del_filter,
+        patch('gmail_cleaner.gmail._delete_label_by_id'),
+    ):
+        msgs, fs = gmail.delete_label_completely(
+            creds,
+            label,
+            on_progress=lambda _d: None,
+        )
+    assert fs == 1
+    del_filter.assert_called_once_with(mock_service, 'f3')
+
+
+def test_delete_label_completely_zero_matching_filters():
+    creds = MagicMock()
+    mock_service = MagicMock()
+    label = {'id': 'L1', 'name': 'X', 'type': 'user'}
+    mock_service.users().messages().list().execute.return_value = {}
+    mock_service.users().messages().list_next.return_value = None
+    with (
+        patch(
+            'gmail_cleaner.gmail.build_service',
+            return_value=mock_service,
+        ),
+        patch(
+            'gmail_cleaner.gmail._list_filters',
+            return_value=[
+                {'id': 'f2', 'action': {'addLabelIds': ['L2']}},
+            ],
+        ),
+        patch('gmail_cleaner.gmail._delete_filter') as del_filter,
+        patch('gmail_cleaner.gmail._delete_label_by_id'),
+    ):
+        _, fs = gmail.delete_label_completely(
+            creds,
+            label,
+            on_progress=lambda _d: None,
+        )
+    assert fs == 0
+    del_filter.assert_not_called()
+
+
+def test_delete_label_completely_zero_messages_still_cleans_up():
+    creds = MagicMock()
+    mock_service = MagicMock()
+    label = {'id': 'L1', 'name': 'X', 'type': 'user'}
+    mock_service.users().messages().list().execute.return_value = {}
+    mock_service.users().messages().list_next.return_value = None
+    with (
+        patch(
+            'gmail_cleaner.gmail.build_service',
+            return_value=mock_service,
+        ),
+        patch('gmail_cleaner.gmail._list_filters', return_value=[]),
+        patch('gmail_cleaner.gmail._delete_label_by_id') as del_label,
+    ):
+        msgs, fs = gmail.delete_label_completely(
+            creds,
+            label,
+            on_progress=lambda _d: None,
+        )
+    assert msgs == 0
+    assert fs == 0
+    del_label.assert_called_once_with(mock_service, 'L1')

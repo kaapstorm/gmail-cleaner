@@ -202,6 +202,56 @@ def _delete_label_by_id(service, label_id: str) -> None:
     )
 
 
+def find_label(
+    creds,
+    label_name: str,
+) -> tuple[dict, int, bool] | None:
+    service = build_service(creds)
+    for label in _list_user_labels(service):
+        if label['name'] == label_name:
+            response = (
+                service.users()
+                .messages()
+                .list(
+                    userId='me',
+                    q=f'label:{label["id"]}',
+                    maxResults=_LIST_PAGE_SIZE,
+                )
+                .execute()
+            )
+            estimate = response.get('resultSizeEstimate', 0)
+            has_messages = (
+                bool(response.get('messages')) or 'nextPageToken' in response
+            )
+            return label, estimate, has_messages
+    return None
+
+
+def delete_label_completely(
+    creds,
+    label: dict,
+    *,
+    on_progress: Callable[[int], None],
+) -> tuple[int, int]:
+    service = build_service(creds)
+    label_id = label['id']
+    messages_deleted = _delete_message_batches(
+        service,
+        _iter_message_ids(service, f'label:{label_id}'),
+        on_progress=on_progress,
+    )
+    filters = _list_filters(service)
+    matching = [
+        f
+        for f in filters
+        if label_id in f.get('action', {}).get('addLabelIds', [])
+    ]
+    for f in matching:
+        _delete_filter(service, f['id'])
+    _delete_label_by_id(service, label_id)
+    return messages_deleted, len(matching)
+
+
 def delete_messages_matching(
     creds,
     query: str,
