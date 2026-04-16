@@ -496,3 +496,63 @@ def test_delete_messages_matching_empty():
         )
     assert deleted == 0
     mock_service.users().messages().batchDelete.assert_not_called()
+
+
+def test_list_filters_returns_filter_list():
+    mock_service = MagicMock()
+    filters = [
+        {'id': 'f1', 'action': {'addLabelIds': ['L1']}},
+        {'id': 'f2', 'action': {'addLabelIds': ['L2']}},
+    ]
+    mock_service.users().settings().filters().list().execute.return_value = {
+        'filter': filters,
+    }
+    assert gmail._list_filters(mock_service) == filters
+
+
+def test_list_filters_empty_response():
+    mock_service = MagicMock()
+    mock_service.users().settings().filters().list().execute.return_value = {}
+    assert gmail._list_filters(mock_service) == []
+
+
+def test_delete_filter_calls_api():
+    mock_service = MagicMock()
+    gmail._delete_filter(mock_service, 'f1')
+    mock_service.users().settings().filters().delete.assert_called_with(
+        userId='me',
+        id='f1',
+    )
+
+
+@use(no_sleep)
+def test_delete_filter_retries_on_5xx():
+    mock_service = MagicMock()
+    err = HttpError(MagicMock(status=500), b'')
+    mock_service.users().settings().filters().delete().execute.side_effect = [
+        err,
+        None,
+    ]
+    gmail._delete_filter(mock_service, 'f1')
+    assert (
+        mock_service.users().settings().filters().delete().execute.call_count
+        == 2
+    )
+
+
+def test_delete_label_by_id_calls_api():
+    mock_service = MagicMock()
+    gmail._delete_label_by_id(mock_service, 'Label_1')
+    mock_service.users().labels().delete.assert_called_with(
+        userId='me',
+        id='Label_1',
+    )
+
+
+@use(no_sleep)
+def test_delete_label_by_id_retries_on_5xx():
+    mock_service = MagicMock()
+    err = HttpError(MagicMock(status=500), b'')
+    mock_service.users().labels().delete().execute.side_effect = [err, None]
+    gmail._delete_label_by_id(mock_service, 'Label_1')
+    assert mock_service.users().labels().delete().execute.call_count == 2

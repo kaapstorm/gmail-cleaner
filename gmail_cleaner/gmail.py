@@ -173,6 +173,35 @@ def scan_for_messages(creds, query: str) -> tuple[int, bool]:
     return estimate, has_results
 
 
+def _list_filters(service) -> list[dict]:
+    response = _with_retry(
+        lambda: (
+            service.users().settings().filters().list(userId='me').execute()
+        ),
+    )
+    return response.get('filter', [])
+
+
+def _delete_filter(service, filter_id: str) -> None:
+    _with_retry(
+        lambda: (
+            service.users()
+            .settings()
+            .filters()
+            .delete(userId='me', id=filter_id)
+            .execute()
+        ),
+    )
+
+
+def _delete_label_by_id(service, label_id: str) -> None:
+    _with_retry(
+        lambda: (
+            service.users().labels().delete(userId='me', id=label_id).execute()
+        ),
+    )
+
+
 def delete_messages_matching(
     creds,
     query: str,
