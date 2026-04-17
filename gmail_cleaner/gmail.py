@@ -285,6 +285,24 @@ def _fetch_message_headers(
     return {name: found.get(name, '') for name in _WANTED_HEADERS}
 
 
+def iter_inbox_ids(creds: Credentials) -> Iterator[str]:
+    """Yield the ID of every message currently in INBOX."""
+    service = build_service(creds)
+    page_token: str | None = None
+    while True:
+        kwargs: dict[str, Any] = {'userId': 'me', 'q': 'in:inbox'}
+        if page_token:
+            kwargs['pageToken'] = page_token
+        response = _with_retry(
+            service.users().messages().list(**kwargs).execute,
+        )
+        for message in response.get('messages', []) or []:
+            yield message['id']
+        page_token = response.get('nextPageToken')
+        if not page_token:
+            return
+
+
 def iter_message_headers(
     creds: Credentials,
     message_ids: Iterable[str],

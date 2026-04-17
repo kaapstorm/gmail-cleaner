@@ -537,3 +537,45 @@ def test_fetch_message_export_uses_metadata_format_and_header_allowlist():
             'List-Unsubscribe',
         ],
     )
+
+
+def test_iter_inbox_ids_paginates_until_exhausted():
+    mock_creds = MagicMock()
+    mock_service = MagicMock()
+    mock_service.users().messages().list().execute.side_effect = [
+        {'messages': [{'id': 'a'}, {'id': 'b'}], 'nextPageToken': 'p2'},
+        {'messages': [{'id': 'c'}]},
+    ]
+    with patch('gmail_cleaner.gmail.build', return_value=mock_service):
+        result = list(gmail.iter_inbox_ids(mock_creds))
+    assert result == ['a', 'b', 'c']
+
+
+def test_iter_inbox_ids_handles_empty_inbox():
+    mock_creds = MagicMock()
+    mock_service = MagicMock()
+    mock_service.users().messages().list().execute.return_value = {}
+    with patch('gmail_cleaner.gmail.build', return_value=mock_service):
+        result = list(gmail.iter_inbox_ids(mock_creds))
+    assert result == []
+
+
+def test_iter_inbox_ids_passes_query_and_page_token():
+    mock_creds = MagicMock()
+    mock_service = MagicMock()
+    list_mock = mock_service.users().messages().list
+    list_mock().execute.side_effect = [
+        {'messages': [{'id': 'a'}], 'nextPageToken': 'tok'},
+        {'messages': [{'id': 'b'}]},
+    ]
+    with patch('gmail_cleaner.gmail.build', return_value=mock_service):
+        list(gmail.iter_inbox_ids(mock_creds))
+    calls = list_mock.call_args_list
+    # Filter out the accessor calls (no kwargs) from our two paginated calls.
+    paginated = [call for call in calls if call.kwargs]
+    assert paginated[0].kwargs == {'userId': 'me', 'q': 'in:inbox'}
+    assert paginated[1].kwargs == {
+        'userId': 'me',
+        'q': 'in:inbox',
+        'pageToken': 'tok',
+    }
