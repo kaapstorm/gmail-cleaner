@@ -30,6 +30,39 @@ class LabelDeletion(NamedTuple):
     filters_deleted: int
 
 
+class Preview(NamedTuple):
+    total: int
+    sample_ids: list[str]
+
+
+def preview_query(
+    creds: Credentials,
+    *,
+    query: str | None = None,
+    label_ids: list[str] | None = None,
+    sample_size: int = 10,
+) -> Preview:
+    """Paginate the full result set for an accurate count plus the first N ids.
+
+    Unlike ``scan_for_messages``, which reads a single page and trusts
+    Gmail's ``resultSizeEstimate``, this walks every page so the count
+    is exact. Callers use it for dry-run output where accuracy
+    outweighs latency.
+    """
+    service = build_service(creds)
+    sample_ids: list[str] = []
+    total = 0
+    for message_id in _iter_message_ids(
+        service,
+        query=query,
+        label_ids=label_ids,
+    ):
+        if len(sample_ids) < sample_size:
+            sample_ids.append(message_id)
+        total += 1
+    return Preview(total, sample_ids)
+
+
 def _list_messages_kwargs(
     *,
     query: str | None,
