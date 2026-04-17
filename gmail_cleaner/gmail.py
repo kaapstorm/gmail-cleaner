@@ -88,6 +88,46 @@ def _with_retry(fn: Callable[..., T], *args: Any, **kwargs: Any) -> T:
     raise AssertionError('unreachable')  # pragma: no cover
 
 
+def _collect_attachment_parts(parts: list[dict], out: list[dict]) -> None:
+    for part in parts:
+        filename = part.get('filename') or ''
+        if filename:
+            body = part.get('body', {}) or {}
+            out.append(
+                {
+                    'filename': filename,
+                    'mime_type': part.get('mimeType', ''),
+                    'size': body.get('size', 0),
+                },
+            )
+        nested = part.get('parts')
+        if nested:
+            _collect_attachment_parts(nested, out)
+
+
+def _extract_attachments(payload: dict) -> list[dict] | None:
+    """Return attachment descriptors, or ``None`` if indeterminate.
+
+    - When ``payload.parts`` is present, walks it recursively and
+      returns a list of ``{filename, mime_type, size}`` dicts for
+      parts that declare a non-empty ``filename``.
+    - When ``parts`` is absent and ``mimeType`` is not ``multipart/*``,
+      returns ``[]`` (single-part message, no attachments possible).
+    - When ``parts`` is absent and ``mimeType`` is ``multipart/*``,
+      the representation is indeterminate and the function returns
+      ``None`` so the caller can decide how to proceed.
+    """
+    mime_type = payload.get('mimeType', '')
+    parts = payload.get('parts')
+    if parts is None:
+        if mime_type.startswith('multipart/'):
+            return None
+        return []
+    attachments: list[dict] = []
+    _collect_attachment_parts(parts, attachments)
+    return attachments
+
+
 def build_service(creds: Credentials) -> Service:
     return build('gmail', 'v1', credentials=creds)
 

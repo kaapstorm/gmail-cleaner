@@ -347,3 +347,79 @@ def test_with_retry_falls_back_to_default_delay(monkeypatch):
 )
 def test_parse_iso_date(raw, expected):
     assert gmail._parse_iso_date(raw) == expected
+
+
+@pytest.mark.parametrize(
+    'payload, expected',
+    [
+        # Bare text/plain — no attachments possible.
+        ({'mimeType': 'text/plain'}, []),
+        # Multipart with one attachment and one body part.
+        (
+            {
+                'mimeType': 'multipart/mixed',
+                'parts': [
+                    {'mimeType': 'text/plain', 'filename': ''},
+                    {
+                        'mimeType': 'application/pdf',
+                        'filename': 'menu.pdf',
+                        'body': {'size': 48213},
+                    },
+                ],
+            },
+            [
+                {
+                    'filename': 'menu.pdf',
+                    'mime_type': 'application/pdf',
+                    'size': 48213,
+                },
+            ],
+        ),
+        # Nested multipart/alternative inside multipart/mixed.
+        (
+            {
+                'mimeType': 'multipart/mixed',
+                'parts': [
+                    {
+                        'mimeType': 'multipart/alternative',
+                        'filename': '',
+                        'parts': [
+                            {'mimeType': 'text/plain', 'filename': ''},
+                            {'mimeType': 'text/html', 'filename': ''},
+                        ],
+                    },
+                    {
+                        'mimeType': 'image/png',
+                        'filename': 'pic.png',
+                        'body': {'size': 101},
+                    },
+                ],
+            },
+            [
+                {
+                    'filename': 'pic.png',
+                    'mime_type': 'image/png',
+                    'size': 101,
+                },
+            ],
+        ),
+        # Parts present but none have a filename — empty list.
+        (
+            {
+                'mimeType': 'multipart/alternative',
+                'parts': [
+                    {'mimeType': 'text/plain', 'filename': ''},
+                    {'mimeType': 'text/html', 'filename': ''},
+                ],
+            },
+            [],
+        ),
+    ],
+)
+def test_extract_attachments(payload, expected):
+    assert gmail._extract_attachments(payload) == expected
+
+
+def test_extract_attachments_indeterminate_returns_none():
+    payload = {'mimeType': 'multipart/mixed'}
+    assert gmail._extract_attachments(payload) is None
