@@ -1,28 +1,9 @@
 import functools
-from email.utils import parsedate_to_datetime
 
 import typer
-from google.oauth2.credentials import Credentials
 
-from gmail_cleaner import auth, cleanup, gmail
-from gmail_cleaner.commands._progress import report_progress
-
-
-def _format_date(raw: str) -> str:
-    try:
-        parsed = parsedate_to_datetime(raw)
-    except TypeError, ValueError:
-        return raw
-    if parsed is None:
-        return raw
-    return parsed.strftime('%Y-%m-%d')
-
-
-def _echo_sample(creds: Credentials, sample_ids: list[str]) -> None:
-    for message_id in sample_ids:
-        headers = gmail.get_message_headers(creds, message_id)
-        date = _format_date(headers['Date'])
-        typer.echo(f'{date}  {headers["From"]}  {headers["Subject"]}')
+from gmail_cleaner import auth, cleanup
+from gmail_cleaner.commands._progress import echo_sample, report_progress
 
 
 def delete_query(
@@ -53,7 +34,7 @@ def delete_query(
         typer.echo(f'{preview.total:,} matches')
         if preview.sample_ids:
             typer.echo('')
-            _echo_sample(creds, preview.sample_ids)
+            echo_sample(creds, preview.sample_ids)
         return
 
     scan = cleanup.scan_for_messages(creds, query)

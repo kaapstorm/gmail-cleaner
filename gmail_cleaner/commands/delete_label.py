@@ -3,13 +3,38 @@ import functools
 import typer
 
 from gmail_cleaner import auth, cleanup
-from gmail_cleaner.commands._progress import report_progress
+from gmail_cleaner.commands._progress import echo_sample, report_progress
+
+
+def _render_filter_criteria(criteria: dict) -> str:
+    if not criteria:
+        return '(no criteria)'
+    parts: list[str] = []
+    for key, value in criteria.items():
+        if key == 'hasAttachment':
+            if value:
+                parts.append('has:attachment')
+        elif key == 'excludeChats':
+            if value:
+                parts.append('-in:chats')
+        elif key == 'query':
+            parts.append(str(value))
+        elif key == 'negatedQuery':
+            parts.append(f'-({value})')
+        else:
+            parts.append(f'{key}:{value}')
+    return ' AND '.join(parts) if parts else '(no criteria)'
 
 
 def delete_label(
     label_name: str = typer.Argument(
         ...,
         help='Name of the label to delete.',
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        '--dry-run',
+        help='Preview matches, filters, and headers without deleting.',
     ),
     force: bool = typer.Option(
         False,
@@ -26,6 +51,26 @@ def delete_label(
     if found is None:
         typer.echo(f"Label '{label_name}' not found")
         raise typer.Exit(1)
+
+    if dry_run:
+        preview = cleanup.preview_label(creds, found.label)
+        typer.echo('DRY RUN — nothing will be deleted.')
+        typer.echo('')
+        typer.echo(f"Label '{label_name}': {preview.total:,} messages")
+        if preview.filters:
+            typer.echo('')
+            typer.echo(
+                f'Filters that would be removed ({len(preview.filters)}):',
+            )
+            for filter_record in preview.filters:
+                criteria = _render_filter_criteria(
+                    filter_record.get('criteria', {}),
+                )
+                typer.echo(f'  {criteria}')
+        if preview.sample_ids:
+            typer.echo('')
+            echo_sample(creds, preview.sample_ids)
+        return
 
     if not force:
         typer.confirm(

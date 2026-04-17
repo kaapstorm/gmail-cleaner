@@ -35,6 +35,12 @@ class Preview(NamedTuple):
     sample_ids: list[str]
 
 
+class LabelPreview(NamedTuple):
+    total: int
+    sample_ids: list[str]
+    filters: list[dict]
+
+
 def preview_query(
     creds: Credentials,
     *,
@@ -61,6 +67,36 @@ def preview_query(
             sample_ids.append(message_id)
         total += 1
     return Preview(total, sample_ids)
+
+
+def preview_label(
+    creds: Credentials,
+    label: dict,
+    *,
+    sample_size: int = 10,
+) -> LabelPreview:
+    """Dry-run counterpart to ``delete_label_completely``.
+
+    Paginates all messages tagged with ``label`` for an accurate
+    count, captures the first ``sample_size`` ids, and returns the
+    filter records whose ``addLabelIds`` action targets this label.
+    Makes no destructive API calls.
+    """
+    service = build_service(creds)
+    label_id = label['id']
+    sample_ids: list[str] = []
+    total = 0
+    for message_id in _iter_message_ids(service, label_ids=[label_id]):
+        if len(sample_ids) < sample_size:
+            sample_ids.append(message_id)
+        total += 1
+    filters = _list_filters(service)
+    matching = [
+        f
+        for f in filters
+        if label_id in f.get('action', {}).get('addLabelIds', [])
+    ]
+    return LabelPreview(total, sample_ids, matching)
 
 
 def _list_messages_kwargs(

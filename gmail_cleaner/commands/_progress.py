@@ -1,4 +1,10 @@
 import sys
+from email.utils import parsedate_to_datetime
+
+import typer
+from google.oauth2.credentials import Credentials
+
+from gmail_cleaner import gmail
 
 
 def report_progress(total_estimate: int, deleted: int) -> None:
@@ -12,3 +18,20 @@ def report_progress(total_estimate: int, deleted: int) -> None:
         f'Deleted {deleted:,} of ~{total_estimate:,} messages...',
         file=sys.stderr,
     )
+
+
+def format_date(raw: str) -> str:
+    try:
+        parsed = parsedate_to_datetime(raw)
+    except TypeError, ValueError:
+        return raw
+    if parsed is None:
+        return raw
+    return parsed.strftime('%Y-%m-%d')
+
+
+def echo_sample(creds: Credentials, sample_ids: list[str]) -> None:
+    for message_id in sample_ids:
+        headers = gmail.get_message_headers(creds, message_id)
+        date = format_date(headers['Date'])
+        typer.echo(f'{date}  {headers["From"]}  {headers["Subject"]}')

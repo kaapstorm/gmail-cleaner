@@ -78,7 +78,7 @@ def test_delete_query_dry_run_shows_count_and_sample():
             return_value=Preview(total=1523, sample_ids=['m1', 'm2']),
         ) as preview,
         patch(
-            'gmail_cleaner.commands.delete_query.gmail.get_message_headers',
+            'gmail_cleaner.commands._progress.gmail.get_message_headers',
             side_effect=[
                 {
                     'Date': 'Mon, 13 Apr 2026 14:30:00 -0400',
