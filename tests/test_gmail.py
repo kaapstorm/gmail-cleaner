@@ -79,7 +79,7 @@ def test_find_old_labels_returns_old_labels_and_total():
     ]
     has_recent = {'L1': False, 'L2': True, 'L3': False}
     with (
-        patch('gmail_cleaner.gmail.build') as mock_build,
+        patch('gmail_cleaner.gmail.build'),
         patch(
             'gmail_cleaner.gmail._list_user_labels',
             return_value=labels,
