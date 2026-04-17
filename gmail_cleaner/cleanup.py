@@ -200,10 +200,12 @@ def delete_label_completely(
         for f in filters
         if label_id in f.get('action', {}).get('addLabelIds', [])
     ]
+    filters_deleted = 0
     for filter_record in matching:
         _delete_filter(service, filter_record['id'])
+        filters_deleted += 1
     _delete_label_by_id(service, label_id)
-    return LabelDeletion(messages_deleted, len(matching))
+    return LabelDeletion(messages_deleted, filters_deleted)
 
 
 def delete_messages_matching(
