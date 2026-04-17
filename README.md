@@ -96,3 +96,27 @@ Example
 ```shell
 gmc delete-query 'in:MySpace older_than:2y'
 ```
+
+
+### export-inbox
+
+Exports one JSON object per inbox message to a JSONL file, suitable
+for feeding into an LLM to suggest filter or labelling improvements.
+
+Example
+
+```shell
+gmc export-inbox inbox.jsonl
+```
+
+Use `--` as the output path to write to stdout (the first `--` is
+the shell's end-of-options marker, the second is the output
+argument):
+
+```shell
+gmc export-inbox -- -- | jq '.subject'
+```
+
+The export contains metadata only (headers, labels, Gmail snippet,
+attachment filenames/sizes). It does not include message bodies or
+attachment bytes.
