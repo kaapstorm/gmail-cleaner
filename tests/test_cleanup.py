@@ -88,7 +88,7 @@ def test_iter_message_ids_is_lazy():
 def test_delete_message_batches_groups_by_500():
     mock_service = MagicMock()
     ids = [f'm{i}' for i in range(750)]
-    progress = []
+    progress: list[int] = []
     total = cleanup._delete_message_batches(
         mock_service,
         ids,
@@ -104,7 +104,7 @@ def test_delete_message_batches_groups_by_500():
 
 def test_delete_message_batches_empty_is_noop():
     mock_service = MagicMock()
-    progress = []
+    progress: list[int] = []
     total = cleanup._delete_message_batches(
         mock_service,
         iter([]),
@@ -232,7 +232,7 @@ def test_delete_messages_matching_paginates_and_deletes():
         'messages': [{'id': f'm{i}'} for i in range(3)],
     }
     mock_service.users().messages().list_next.return_value = None
-    progress = []
+    progress: list[int] = []
     with patch(
         'gmail_cleaner.cleanup.build_service',
         return_value=mock_service,

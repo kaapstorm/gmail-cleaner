@@ -44,6 +44,21 @@ line-length = 79
 [tool.ruff.format]
 quote-style = "single"
 
+[tool.mypy]
+disallow_incomplete_defs = true
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+
 [[tool.mypy.overrides]]
-module = ["google.*", "google_auth_oauthlib.*", "googleapiclient.*"]
+module = [
+    "google.*",
+    "google_auth_oauthlib.*",
+    "googleapiclient.*",
+    "unmagic.*",
+]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_incomplete_defs = false

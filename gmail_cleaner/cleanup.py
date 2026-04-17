@@ -1,7 +1,14 @@
 from collections.abc import Iterable, Iterator
 from typing import Callable, NamedTuple
 
-from gmail_cleaner.gmail import _list_user_labels, _with_retry, build_service
+from google.oauth2.credentials import Credentials
+
+from gmail_cleaner.gmail import (
+    Service,
+    _list_user_labels,
+    _with_retry,
+    build_service,
+)
 
 _LIST_PAGE_SIZE = 500
 _DELETE_BATCH_SIZE = 500
@@ -37,7 +44,7 @@ def _list_messages_kwargs(
 
 
 def _iter_message_ids(
-    service,
+    service: Service,
     *,
     query: str | None = None,
     label_ids: list[str] | None = None,
@@ -58,7 +65,7 @@ def _iter_message_ids(
         )
 
 
-def _batch_delete(service, batch: list[str]) -> None:
+def _batch_delete(service: Service, batch: list[str]) -> None:
     (
         service.users()
         .messages()
@@ -68,7 +75,7 @@ def _batch_delete(service, batch: list[str]) -> None:
 
 
 def _delete_message_batches(
-    service,
+    service: Service,
     message_ids: Iterable[str],
     *,
     on_progress: Callable[[int], None],
@@ -89,14 +96,14 @@ def _delete_message_batches(
     return deleted
 
 
-def _list_filters(service) -> list[dict]:
+def _list_filters(service: Service) -> list[dict]:
     response = _with_retry(
         service.users().settings().filters().list(userId='me').execute,
     )
     return response.get('filter', [])
 
 
-def _delete_filter(service, filter_id: str) -> None:
+def _delete_filter(service: Service, filter_id: str) -> None:
     _with_retry(
         service.users()
         .settings()
@@ -106,14 +113,14 @@ def _delete_filter(service, filter_id: str) -> None:
     )
 
 
-def _delete_label_by_id(service, label_id: str) -> None:
+def _delete_label_by_id(service: Service, label_id: str) -> None:
     _with_retry(
         service.users().labels().delete(userId='me', id=label_id).execute,
     )
 
 
 def _peek_query(
-    service,
+    service: Service,
     *,
     query: str | None = None,
     label_ids: list[str] | None = None,
@@ -129,12 +136,12 @@ def _peek_query(
     return ScanResult(estimate, has_results)
 
 
-def scan_for_messages(creds, query: str) -> ScanResult:
+def scan_for_messages(creds: Credentials, query: str) -> ScanResult:
     return _peek_query(build_service(creds), query=query)
 
 
 def find_label(
-    creds,
+    creds: Credentials,
     label_name: str,
 ) -> LabelLookup | None:
     service = build_service(creds)
@@ -146,7 +153,7 @@ def find_label(
 
 
 def delete_label_completely(
-    creds,
+    creds: Credentials,
     label: dict,
     *,
     on_progress: Callable[[int], None],
@@ -185,7 +192,7 @@ def delete_label_completely(
 
 
 def delete_messages_matching(
-    creds,
+    creds: Credentials,
     query: str,
     *,
     on_progress: Callable[[int], None],

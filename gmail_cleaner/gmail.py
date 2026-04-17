@@ -1,11 +1,17 @@
 import time
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable, TypeAlias, TypeVar
 
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+
+# The googleapiclient Resource is dynamically generated from the discovery
+# document and ships without type stubs, so we can't annotate it precisely.
+# The alias exists for documentary value: a parameter typed Service is a
+# Gmail API handle, not an arbitrary object.
+Service: TypeAlias = Any
 
 _RETRY_DELAYS = (2.5, 5.0)
 
@@ -69,7 +75,7 @@ def _with_retry(fn: Callable[..., T], *args: Any, **kwargs: Any) -> T:
     raise AssertionError('unreachable')  # pragma: no cover
 
 
-def build_service(creds: Credentials):
+def build_service(creds: Credentials) -> Service:
     return build('gmail', 'v1', credentials=creds)
 
 
@@ -81,7 +87,7 @@ def get_user_email(creds: Credentials) -> str:
     return profile['emailAddress']
 
 
-def _list_user_labels(service) -> list[dict]:
+def _list_user_labels(service: Service) -> list[dict]:
     response = _with_retry(
         service.users().labels().list(userId='me').execute,
     )
@@ -94,7 +100,7 @@ def _list_user_labels(service) -> list[dict]:
 
 
 def _label_has_recent_message(
-    service,
+    service: Service,
     label_id: str,
     age: str,
 ) -> bool:
