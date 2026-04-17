@@ -130,8 +130,7 @@ def _delete_label_by_id(service, label_id: str) -> None:
     )
 
 
-def scan_for_messages(creds, query: str) -> ScanResult:
-    service = build_service(creds)
+def _peek_query(service, query: str) -> ScanResult:
     response = (
         service.users()
         .messages()
@@ -143,6 +142,10 @@ def scan_for_messages(creds, query: str) -> ScanResult:
     return ScanResult(estimate, has_results)
 
 
+def scan_for_messages(creds, query: str) -> ScanResult:
+    return _peek_query(build_service(creds), query)
+
+
 def find_label(
     creds,
     label_name: str,
@@ -150,21 +153,8 @@ def find_label(
     service = build_service(creds)
     for label in _list_user_labels(service):
         if label['name'] == label_name:
-            response = (
-                service.users()
-                .messages()
-                .list(
-                    userId='me',
-                    q=f'label:{label["id"]}',
-                    maxResults=_LIST_PAGE_SIZE,
-                )
-                .execute()
-            )
-            estimate = response.get('resultSizeEstimate', 0)
-            has_messages = (
-                bool(response.get('messages')) or 'nextPageToken' in response
-            )
-            return LabelLookup(label, estimate, has_messages)
+            peek = _peek_query(service, f'label:{label["id"]}')
+            return LabelLookup(label, peek.estimate, peek.has_results)
     return None
 
 
