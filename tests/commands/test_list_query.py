@@ -31,6 +31,13 @@ def test_list_query_zero_matches():
     assert result.stdout.splitlines()[0] == '0 matches'
 
 
+def _iter_returning(headers):
+    def _side_effect(_creds, ids):
+        return iter([headers for _ in ids])
+
+    return _side_effect
+
+
 @pytest.mark.parametrize(
     'ids, estimate, expected_count_line',
     [
@@ -51,8 +58,8 @@ def test_list_query_count_line(ids, estimate, expected_count_line):
             return_value=(ids, estimate),
         ):
             with patch(
-                'gmail_cleaner.commands.list_query.gmail.get_message_headers',
-                return_value=headers,
+                'gmail_cleaner.commands.list_query.gmail.iter_message_headers',
+                side_effect=_iter_returning(headers),
             ):
                 result = runner.invoke(app, ['list-query', 'in:inbox'])
     assert result.exit_code == 0
@@ -63,20 +70,27 @@ def test_list_query_prints_first_ten_messages_only():
     mock_creds = MagicMock()
     ids = [f'm{i}' for i in range(15)]
     headers = _headers('Mon, 13 Apr 2026 14:30:00 -0400', 'a@x', 'Hi')
+    captured_ids: list[list[str]] = []
+
+    def _capture(_creds, id_iterable):
+        captured = list(id_iterable)
+        captured_ids.append(captured)
+        return iter([headers for _ in captured])
+
     with patch('gmail_cleaner.auth.load_token', return_value=mock_creds):
         with patch(
             'gmail_cleaner.commands.list_query.gmail.search_messages',
             return_value=(ids, 15),
         ):
             with patch(
-                'gmail_cleaner.commands.list_query.gmail.get_message_headers',
-                return_value=headers,
-            ) as get_headers:
+                'gmail_cleaner.commands.list_query.gmail.iter_message_headers',
+                side_effect=_capture,
+            ):
                 result = runner.invoke(app, ['list-query', 'in:inbox'])
     assert result.exit_code == 0
     # 1 count line + 1 blank line + 10 message lines = 12.
     assert len(result.stdout.splitlines()) == 12
-    assert get_headers.call_count == 10
+    assert captured_ids == [ids[:10]]
 
 
 def test_list_query_formats_message_line():
@@ -92,8 +106,8 @@ def test_list_query_formats_message_line():
             return_value=(['m1'], 1),
         ):
             with patch(
-                'gmail_cleaner.commands.list_query.gmail.get_message_headers',
-                return_value=headers,
+                'gmail_cleaner.commands.list_query.gmail.iter_message_headers',
+                side_effect=_iter_returning(headers),
             ):
                 result = runner.invoke(app, ['list-query', 'in:inbox'])
     lines = result.stdout.splitlines()
@@ -119,8 +133,8 @@ def test_list_query_falls_back_to_raw_date_on_parse_failure(bad_date):
             return_value=(['m1'], 1),
         ):
             with patch(
-                'gmail_cleaner.commands.list_query.gmail.get_message_headers',
-                return_value=headers,
+                'gmail_cleaner.commands.list_query.gmail.iter_message_headers',
+                side_effect=_iter_returning(headers),
             ):
                 result = runner.invoke(app, ['list-query', 'in:inbox'])
     lines = result.stdout.splitlines()

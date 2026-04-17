@@ -15,7 +15,10 @@ def test_get_credentials_path_default():
     env = {k: v for k, v in os.environ.items() if k != 'XDG_CONFIG_HOME'}
     with patch.dict('os.environ', env, clear=True):
         result = auth.get_credentials_path()
-    assert result == Path.home() / '.config' / 'gmail-cleaner' / 'credentials.json'
+    assert (
+        result
+        == Path.home() / '.config' / 'gmail-cleaner' / 'credentials.json'
+    )
 
 
 def test_get_credentials_path_custom_xdg():
@@ -39,8 +42,8 @@ def test_get_token_path_custom_xdg():
 
 @use(tmp_dir)
 def test_save_token_writes_json():
-    d = tmp_dir()
-    token_path = d / 'subdir' / 'token.json'
+    tmp_path = tmp_dir()
+    token_path = tmp_path / 'subdir' / 'token.json'
     mock_creds = MagicMock()
     mock_creds.to_json.return_value = '{"token": "abc"}'
     with patch('gmail_cleaner.auth.get_token_path', return_value=token_path):
@@ -51,8 +54,8 @@ def test_save_token_writes_json():
 
 @use(tmp_dir)
 def test_save_token_sets_owner_only_permissions():
-    d = tmp_dir()
-    token_path = d / 'token.json'
+    tmp_path = tmp_dir()
+    token_path = tmp_path / 'token.json'
     mock_creds = MagicMock()
     mock_creds.to_json.return_value = '{}'
     with patch('gmail_cleaner.auth.get_token_path', return_value=token_path):
@@ -63,8 +66,8 @@ def test_save_token_sets_owner_only_permissions():
 
 @use(tmp_dir)
 def test_save_token_tightens_permissions_on_preexisting_file():
-    d = tmp_dir()
-    token_path = d / 'token.json'
+    tmp_path = tmp_dir()
+    token_path = tmp_path / 'token.json'
     token_path.write_text('{}')
     token_path.chmod(0o644)
     mock_creds = MagicMock()
@@ -76,8 +79,8 @@ def test_save_token_tightens_permissions_on_preexisting_file():
 
 @use(tmp_dir)
 def test_save_token_creates_parent_dirs():
-    d = tmp_dir()
-    token_path = d / 'nested' / 'dirs' / 'token.json'
+    tmp_path = tmp_dir()
+    token_path = tmp_path / 'nested' / 'dirs' / 'token.json'
     mock_creds = MagicMock()
     mock_creds.to_json.return_value = '{}'
     with patch('gmail_cleaner.auth.get_token_path', return_value=token_path):
@@ -87,8 +90,8 @@ def test_save_token_creates_parent_dirs():
 
 @use(tmp_dir)
 def test_delete_token_removes_file():
-    d = tmp_dir()
-    token_path = d / 'token.json'
+    tmp_path = tmp_dir()
+    token_path = tmp_path / 'token.json'
     token_path.write_text('{}')
     with patch('gmail_cleaner.auth.get_token_path', return_value=token_path):
         auth.delete_token()
@@ -97,8 +100,8 @@ def test_delete_token_removes_file():
 
 @use(tmp_dir)
 def test_delete_token_idempotent():
-    d = tmp_dir()
-    token_path = d / 'token.json'
+    tmp_path = tmp_dir()
+    token_path = tmp_path / 'token.json'
     # file does not exist — should not raise
     with patch('gmail_cleaner.auth.get_token_path', return_value=token_path):
         auth.delete_token()
@@ -106,8 +109,8 @@ def test_delete_token_idempotent():
 
 @use(tmp_dir)
 def test_load_token_returns_none_when_no_file():
-    d = tmp_dir()
-    token_path = d / 'token.json'
+    tmp_path = tmp_dir()
+    token_path = tmp_path / 'token.json'
     with patch('gmail_cleaner.auth.get_token_path', return_value=token_path):
         result = auth.load_token()
     assert result is None
@@ -115,8 +118,8 @@ def test_load_token_returns_none_when_no_file():
 
 @use(tmp_dir)
 def test_load_token_returns_none_on_corrupt_file():
-    d = tmp_dir()
-    token_path = d / 'token.json'
+    tmp_path = tmp_dir()
+    token_path = tmp_path / 'token.json'
     token_path.write_text('not valid json{')
     with patch('gmail_cleaner.auth.get_token_path', return_value=token_path):
         result = auth.load_token()
@@ -125,8 +128,8 @@ def test_load_token_returns_none_on_corrupt_file():
 
 @use(tmp_dir)
 def test_load_token_returns_valid_credentials():
-    d = tmp_dir()
-    token_path = d / 'token.json'
+    tmp_path = tmp_dir()
+    token_path = tmp_path / 'token.json'
     token_path.write_text('{}')
     mock_creds = MagicMock()
     mock_creds.valid = True
@@ -141,8 +144,8 @@ def test_load_token_returns_valid_credentials():
 
 @use(tmp_dir)
 def test_load_token_refreshes_expired_credentials():
-    d = tmp_dir()
-    token_path = d / 'token.json'
+    tmp_path = tmp_dir()
+    token_path = tmp_path / 'token.json'
     token_path.write_text('{}')
     mock_creds = MagicMock()
     mock_creds.valid = False
@@ -162,8 +165,8 @@ def test_load_token_refreshes_expired_credentials():
 
 @use(tmp_dir)
 def test_load_token_returns_none_on_refresh_error():
-    d = tmp_dir()
-    token_path = d / 'token.json'
+    tmp_path = tmp_dir()
+    token_path = tmp_path / 'token.json'
     token_path.write_text('{}')
     mock_creds = MagicMock()
     mock_creds.valid = False
@@ -182,8 +185,8 @@ def test_load_token_returns_none_on_refresh_error():
 
 @use(tmp_dir)
 def test_load_token_propagates_transport_error():
-    d = tmp_dir()
-    token_path = d / 'token.json'
+    tmp_path = tmp_dir()
+    token_path = tmp_path / 'token.json'
     token_path.write_text('{}')
     mock_creds = MagicMock()
     mock_creds.valid = False
@@ -202,12 +205,14 @@ def test_load_token_propagates_transport_error():
 
 @use(tmp_dir)
 def test_run_oauth_flow_returns_credentials():
-    d = tmp_dir()
-    creds_path = d / 'credentials.json'
+    tmp_path = tmp_dir()
+    creds_path = tmp_path / 'credentials.json'
     mock_flow = MagicMock()
     mock_creds = MagicMock()
     mock_flow.run_local_server.return_value = mock_creds
-    with patch('gmail_cleaner.auth.get_credentials_path', return_value=creds_path):
+    with patch(
+        'gmail_cleaner.auth.get_credentials_path', return_value=creds_path
+    ):
         with patch(
             'gmail_cleaner.auth.InstalledAppFlow.from_client_secrets_file',
             return_value=mock_flow,

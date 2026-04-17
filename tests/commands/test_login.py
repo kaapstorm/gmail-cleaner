@@ -23,8 +23,8 @@ def test_login_already_logged_in_prints_message():
 
 @use(tmp_dir)
 def test_login_missing_credentials_exits_with_error():
-    d = tmp_dir()
-    creds_path = d / 'credentials.json'
+    tmp_path = tmp_dir()
+    creds_path = tmp_path / 'credentials.json'
     with patch('gmail_cleaner.auth.load_token', return_value=None):
         with patch(
             'gmail_cleaner.auth.get_credentials_path', return_value=creds_path
@@ -35,8 +35,8 @@ def test_login_missing_credentials_exits_with_error():
 
 @use(tmp_dir)
 def test_login_missing_credentials_prints_message():
-    d = tmp_dir()
-    creds_path = d / 'credentials.json'
+    tmp_path = tmp_dir()
+    creds_path = tmp_path / 'credentials.json'
     with patch('gmail_cleaner.auth.load_token', return_value=None):
         with patch(
             'gmail_cleaner.auth.get_credentials_path', return_value=creds_path
@@ -47,8 +47,8 @@ def test_login_missing_credentials_prints_message():
 
 @use(tmp_dir)
 def test_login_success_saves_token_and_prints_email():
-    d = tmp_dir()
-    creds_path = d / 'credentials.json'
+    tmp_path = tmp_dir()
+    creds_path = tmp_path / 'credentials.json'
     creds_path.write_text('{}')
     mock_creds = MagicMock()
     with patch('gmail_cleaner.auth.load_token', return_value=None):

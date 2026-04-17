@@ -31,9 +31,9 @@ def save_token(creds: Credentials) -> None:
     # Create the file with 0o600 atomically — writing then chmod-ing
     # leaves a brief window where the token is world-readable.
     flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
-    fd = os.open(token_path, flags, 0o600)
-    with os.fdopen(fd, 'w') as f:
-        f.write(creds.to_json())
+    descriptor = os.open(token_path, flags, 0o600)
+    with os.fdopen(descriptor, 'w') as token_file:
+        token_file.write(creds.to_json())
     # If the file pre-existed with broader perms, the O_CREAT mode is
     # ignored — enforce 0o600 explicitly to cover that case.
     token_path.chmod(0o600)
@@ -49,7 +49,7 @@ def load_token() -> Credentials | None:
         return None
     try:
         creds = Credentials.from_authorized_user_file(str(token_path), SCOPES)
-    except (ValueError, OSError):
+    except ValueError, OSError:
         # Corrupt or unreadable token file — treat as no token. The user
         # can recover by running `gmc login` again.
         return None

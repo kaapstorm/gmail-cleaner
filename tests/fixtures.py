@@ -6,5 +6,5 @@ from unmagic import fixture
 
 @fixture
 def tmp_dir():
-    with tempfile.TemporaryDirectory() as d:
-        yield Path(d)
+    with tempfile.TemporaryDirectory() as tmp_path:
+        yield Path(tmp_path)

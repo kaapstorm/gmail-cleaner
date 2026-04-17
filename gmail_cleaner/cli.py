@@ -1,5 +1,7 @@
 import typer
 
+from gmail_cleaner.commands.delete_label import delete_label
+from gmail_cleaner.commands.delete_query import delete_query
 from gmail_cleaner.commands.list_query import list_query
 from gmail_cleaner.commands.login import login
 from gmail_cleaner.commands.logout import logout
@@ -19,3 +21,9 @@ app.command(
 app.command(
     help='Show the count and first 10 messages matching a Gmail query.',
 )(list_query)
+app.command(
+    help='Permanently delete all emails matching a Gmail query.',
+)(delete_query)
+app.command(
+    help='Permanently delete a label, its filters, and all emails it labels.',
+)(delete_label)

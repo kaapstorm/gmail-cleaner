@@ -18,12 +18,12 @@ def _format_count(num_returned: int, estimate: int) -> str:
 
 def _format_date(raw: str) -> str:
     try:
-        dt = parsedate_to_datetime(raw)
-    except (TypeError, ValueError):
+        parsed = parsedate_to_datetime(raw)
+    except TypeError, ValueError:
         return raw
-    if dt is None:
+    if parsed is None:
         return raw
-    return dt.strftime('%Y-%m-%d')
+    return parsed.strftime('%Y-%m-%d')
 
 
 def list_query(
@@ -44,7 +44,6 @@ def list_query(
     )
     typer.echo(_format_count(len(ids), estimate))
     typer.echo('')
-    for message_id in ids[:PREVIEW_LIMIT]:
-        headers = gmail.get_message_headers(creds, message_id)
+    for headers in gmail.iter_message_headers(creds, ids[:PREVIEW_LIMIT]):
         date = _format_date(headers['Date'])
         typer.echo(f'{date}  {headers["From"]}  {headers["Subject"]}')

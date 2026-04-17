@@ -1,8 +1,18 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from googleapiclient.errors import HttpError
+from unmagic import fixture, use
 
 from gmail_cleaner import gmail
+
+monkeypatch = fixture('monkeypatch')
+
+
+@fixture
+def no_sleep():
+    monkeypatch().setattr('gmail_cleaner.gmail.time.sleep', lambda _s: None)
+    yield
 
 
 def test_build_service_calls_build():
@@ -79,7 +89,7 @@ def test_find_old_labels_returns_old_labels_and_total():
     ]
     has_recent = {'L1': False, 'L2': True, 'L3': False}
     with (
-        patch('gmail_cleaner.gmail.build') as mock_build,
+        patch('gmail_cleaner.gmail.build'),
         patch(
             'gmail_cleaner.gmail._list_user_labels',
             return_value=labels,
@@ -142,7 +152,7 @@ def test_search_messages_passes_query_and_max_results():
     )
 
 
-def test_get_message_headers_extracts_three_headers():
+def test_iter_message_headers_extracts_three_headers():
     mock_creds = MagicMock()
     mock_service = MagicMock()
     mock_service.users().messages().get().execute.return_value = {
@@ -156,36 +166,165 @@ def test_get_message_headers_extracts_three_headers():
         },
     }
     with patch('gmail_cleaner.gmail.build', return_value=mock_service):
-        headers = gmail.get_message_headers(mock_creds, 'm1')
-    assert headers == {
-        'Date': 'Mon, 13 Apr 2026 14:30:00 -0400',
-        'From': 'Alice <alice@example.com>',
-        'Subject': 'Hi there',
-    }
+        results = list(gmail.iter_message_headers(mock_creds, ['m1']))
+    assert results == [
+        {
+            'Date': 'Mon, 13 Apr 2026 14:30:00 -0400',
+            'From': 'Alice <alice@example.com>',
+            'Subject': 'Hi there',
+        },
+    ]
 
 
-def test_get_message_headers_missing_headers_default_to_empty_string():
+def test_iter_message_headers_missing_headers_default_to_empty_string():
     mock_creds = MagicMock()
     mock_service = MagicMock()
     mock_service.users().messages().get().execute.return_value = {
         'payload': {'headers': []},
     }
     with patch('gmail_cleaner.gmail.build', return_value=mock_service):
-        headers = gmail.get_message_headers(mock_creds, 'm1')
-    assert headers == {'Date': '', 'From': '', 'Subject': ''}
+        results = list(gmail.iter_message_headers(mock_creds, ['m1']))
+    assert results == [{'Date': '', 'From': '', 'Subject': ''}]
 
 
-def test_get_message_headers_uses_metadata_format():
+def test_iter_message_headers_uses_metadata_format():
     mock_creds = MagicMock()
     mock_service = MagicMock()
     mock_service.users().messages().get().execute.return_value = {
         'payload': {'headers': []},
     }
     with patch('gmail_cleaner.gmail.build', return_value=mock_service):
-        gmail.get_message_headers(mock_creds, 'm1')
+        list(gmail.iter_message_headers(mock_creds, ['m1']))
     mock_service.users().messages().get.assert_called_with(
         userId='me',
         id='m1',
         format='metadata',
         metadataHeaders=['Date', 'From', 'Subject'],
     )
+
+
+def test_iter_message_headers_builds_service_once():
+    mock_creds = MagicMock()
+    mock_service = MagicMock()
+    mock_service.users().messages().get().execute.return_value = {
+        'payload': {'headers': []},
+    }
+    with patch(
+        'gmail_cleaner.gmail.build',
+        return_value=mock_service,
+    ) as mock_build:
+        list(gmail.iter_message_headers(mock_creds, ['m1', 'm2', 'm3']))
+    assert mock_build.call_count == 1
+
+
+def test_with_retry_returns_value_on_first_success():
+    result = gmail._with_retry(lambda: 'ok')
+    assert result == 'ok'
+
+
+@use(no_sleep)
+def test_with_retry_retries_on_5xx():
+    func = MagicMock(
+        side_effect=[
+            HttpError(MagicMock(status=503), b''),
+            'ok',
+        ],
+    )
+    assert gmail._with_retry(func) == 'ok'
+    assert func.call_count == 2
+
+
+@use(no_sleep)
+def test_with_retry_retries_on_429():
+    func = MagicMock(
+        side_effect=[
+            HttpError(MagicMock(status=429), b''),
+            'ok',
+        ],
+    )
+    assert gmail._with_retry(func) == 'ok'
+
+
+def test_with_retry_does_not_retry_on_403():
+    err = HttpError(MagicMock(status=403), b'')
+    func = MagicMock(side_effect=err)
+    with pytest.raises(HttpError):
+        gmail._with_retry(func)
+    assert func.call_count == 1
+
+
+def test_with_retry_does_not_retry_on_value_error():
+    func = MagicMock(side_effect=ValueError('bug'))
+    with pytest.raises(ValueError):
+        gmail._with_retry(func)
+    assert func.call_count == 1
+
+
+@use(no_sleep)
+def test_with_retry_raises_after_all_attempts_fail():
+    err = HttpError(MagicMock(status=500), b'')
+    func = MagicMock(side_effect=err)
+    with pytest.raises(HttpError):
+        gmail._with_retry(func)
+    assert func.call_count == 3
+
+
+def _http_error_with_retry_after(value: str) -> HttpError:
+    resp = MagicMock(status=429)
+    resp.headers = {'retry-after': value}
+    return HttpError(resp, b'')
+
+
+def test_retry_after_seconds_parses_integer():
+    exc = _http_error_with_retry_after('30')
+    assert gmail._retry_after_seconds(exc) == 30.0
+
+
+def test_retry_after_seconds_parses_http_date():
+    from datetime import datetime, timedelta, timezone
+
+    target = datetime.now(timezone.utc) + timedelta(seconds=45)
+    header = target.strftime('%a, %d %b %Y %H:%M:%S GMT')
+    result = gmail._retry_after_seconds(_http_error_with_retry_after(header))
+    assert result is not None
+    assert 30.0 < result < 60.0
+
+
+def test_retry_after_seconds_returns_none_when_missing():
+    resp = MagicMock(status=429)
+    resp.headers = {}
+    assert gmail._retry_after_seconds(HttpError(resp, b'')) is None
+
+
+def test_retry_after_seconds_returns_none_for_non_http_error():
+    assert gmail._retry_after_seconds(OSError('boom')) is None
+
+
+def test_retry_after_seconds_returns_none_for_garbage():
+    assert (
+        gmail._retry_after_seconds(_http_error_with_retry_after('??')) is None
+    )
+
+
+def test_with_retry_honors_retry_after_header(monkeypatch):
+    sleeps: list[float] = []
+    monkeypatch.setattr(
+        'gmail_cleaner.gmail.time.sleep',
+        lambda seconds: sleeps.append(seconds),
+    )
+    err = _http_error_with_retry_after('7')
+    func = MagicMock(side_effect=[err, 'ok'])
+    assert gmail._with_retry(func) == 'ok'
+    assert sleeps == [7.0]
+
+
+def test_with_retry_falls_back_to_default_delay(monkeypatch):
+    sleeps: list[float] = []
+    monkeypatch.setattr(
+        'gmail_cleaner.gmail.time.sleep',
+        lambda seconds: sleeps.append(seconds),
+    )
+    err = HttpError(MagicMock(status=500, headers={}), b'')
+    func = MagicMock(side_effect=[err, 'ok'])
+    assert gmail._with_retry(func) == 'ok'
+    assert sleeps == [gmail._RETRY_DELAYS[0]]
