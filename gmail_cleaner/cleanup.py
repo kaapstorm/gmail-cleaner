@@ -187,6 +187,18 @@ def delete_label_completely(
     *,
     on_progress: Callable[[int], None],
 ) -> LabelDeletion:
+    """Delete every message tagged with ``label``, then its filters, then the label itself.
+
+    The three destructive steps run sequentially and the operation is
+    not transactional. If any step raises, the exception propagates
+    and earlier steps stay applied: messages already deleted remain
+    deleted, filters already deleted remain deleted, and the label
+    may still exist. The caller is responsible for surfacing the
+    failure and, if desired, re-running the command to finish.
+
+    A ``LabelDeletion`` is only returned on full success; a mid-way
+    failure raises instead of returning a partial count.
+    """
     service = build_service(creds)
     label_id = label['id']
     messages_deleted = _delete_message_batches(
