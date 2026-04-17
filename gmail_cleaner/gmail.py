@@ -207,6 +207,23 @@ def search_messages(
     return ids, estimate
 
 
+def _extract_headers(
+    payload: dict,
+    wanted: Iterable[str],
+) -> dict[str, str]:
+    """Return header name→value pairs from ``payload`` for headers in ``wanted``.
+
+    Only includes headers present in the payload; callers apply their
+    own default policy (e.g. ``''`` or ``None``) for missing entries.
+    """
+    wanted_set = set(wanted)
+    return {
+        header['name']: header['value']
+        for header in payload.get('headers', []) or []
+        if header['name'] in wanted_set
+    }
+
+
 _EXPORT_HEADERS = (
     'Date', 'From', 'To', 'Cc', 'Subject',
     'List-Id', 'List-Unsubscribe',
@@ -233,11 +250,7 @@ def fetch_message_export(service: Service, message_id: str) -> dict:
         .execute,
     )
     payload = response.get('payload', {}) or {}
-    headers = {
-        header['name']: header['value']
-        for header in payload.get('headers', [])
-        if header['name'] in _EXPORT_HEADERS
-    }
+    headers = _extract_headers(payload, _EXPORT_HEADERS)
     record: dict = {
         'id': response.get('id', message_id),
         'thread_id': response.get('threadId'),
@@ -277,11 +290,8 @@ def _fetch_message_headers(
         )
         .execute,
     )
-    found = {
-        header['name']: header['value']
-        for header in response.get('payload', {}).get('headers', [])
-        if header['name'] in _WANTED_HEADERS
-    }
+    payload = response.get('payload', {}) or {}
+    found = _extract_headers(payload, _WANTED_HEADERS)
     return {name: found.get(name, '') for name in _WANTED_HEADERS}
 
 
