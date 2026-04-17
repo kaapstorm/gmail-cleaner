@@ -2,8 +2,8 @@ from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
 
+from gmail_cleaner.cleanup import ScanResult
 from gmail_cleaner.cli import app
-from gmail_cleaner.gmail import ScanResult
 
 runner = CliRunner()
 
@@ -20,11 +20,11 @@ def test_delete_query_no_matches_exits_cleanly():
     with (
         patch('gmail_cleaner.auth.load_token', return_value=creds),
         patch(
-            'gmail_cleaner.commands.delete_query.gmail.scan_for_messages',
+            'gmail_cleaner.commands.delete_query.cleanup.scan_for_messages',
             return_value=ScanResult(0, False),
         ),
         patch(
-            'gmail_cleaner.commands.delete_query.gmail.delete_messages_matching',
+            'gmail_cleaner.commands.delete_query.cleanup.delete_messages_matching',
         ) as del_match,
     ):
         result = runner.invoke(app, ['delete-query', 'in:inbox'])
@@ -38,11 +38,11 @@ def test_delete_query_aborted_by_user():
     with (
         patch('gmail_cleaner.auth.load_token', return_value=creds),
         patch(
-            'gmail_cleaner.commands.delete_query.gmail.scan_for_messages',
+            'gmail_cleaner.commands.delete_query.cleanup.scan_for_messages',
             return_value=ScanResult(3, True),
         ),
         patch(
-            'gmail_cleaner.commands.delete_query.gmail.delete_messages_matching',
+            'gmail_cleaner.commands.delete_query.cleanup.delete_messages_matching',
         ) as del_match,
     ):
         result = runner.invoke(app, ['delete-query', 'in:inbox'], input='n\n')
@@ -55,11 +55,11 @@ def test_delete_query_deletes():
     with (
         patch('gmail_cleaner.auth.load_token', return_value=creds),
         patch(
-            'gmail_cleaner.commands.delete_query.gmail.scan_for_messages',
+            'gmail_cleaner.commands.delete_query.cleanup.scan_for_messages',
             return_value=ScanResult(3, True),
         ),
         patch(
-            'gmail_cleaner.commands.delete_query.gmail.delete_messages_matching',
+            'gmail_cleaner.commands.delete_query.cleanup.delete_messages_matching',
             return_value=3,
         ) as del_match,
     ):
@@ -74,11 +74,11 @@ def test_delete_query_force_skips_confirmation():
     with (
         patch('gmail_cleaner.auth.load_token', return_value=creds),
         patch(
-            'gmail_cleaner.commands.delete_query.gmail.scan_for_messages',
+            'gmail_cleaner.commands.delete_query.cleanup.scan_for_messages',
             return_value=ScanResult(1, True),
         ),
         patch(
-            'gmail_cleaner.commands.delete_query.gmail.delete_messages_matching',
+            'gmail_cleaner.commands.delete_query.cleanup.delete_messages_matching',
             return_value=1,
         ) as del_match,
     ):

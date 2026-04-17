@@ -2,8 +2,8 @@ from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
 
+from gmail_cleaner.cleanup import LabelDeletion, LabelLookup
 from gmail_cleaner.cli import app
-from gmail_cleaner.gmail import LabelDeletion, LabelLookup
 
 runner = CliRunner()
 
@@ -20,7 +20,7 @@ def test_delete_label_not_found_exits_with_error():
     with (
         patch('gmail_cleaner.auth.load_token', return_value=creds),
         patch(
-            'gmail_cleaner.commands.delete_label.gmail.find_label',
+            'gmail_cleaner.commands.delete_label.cleanup.find_label',
             return_value=None,
         ),
     ):
@@ -35,11 +35,11 @@ def test_delete_label_aborted_by_user():
     with (
         patch('gmail_cleaner.auth.load_token', return_value=creds),
         patch(
-            'gmail_cleaner.commands.delete_label.gmail.find_label',
+            'gmail_cleaner.commands.delete_label.cleanup.find_label',
             return_value=LabelLookup(label, 5, True),
         ),
         patch(
-            'gmail_cleaner.commands.delete_label.gmail.delete_label_completely',
+            'gmail_cleaner.commands.delete_label.cleanup.delete_label_completely',
         ) as del_complete,
     ):
         result = runner.invoke(
@@ -57,11 +57,11 @@ def test_delete_label_deletes_messages_filters_and_label():
     with (
         patch('gmail_cleaner.auth.load_token', return_value=creds),
         patch(
-            'gmail_cleaner.commands.delete_label.gmail.find_label',
+            'gmail_cleaner.commands.delete_label.cleanup.find_label',
             return_value=LabelLookup(label, 1523, True),
         ),
         patch(
-            'gmail_cleaner.commands.delete_label.gmail.delete_label_completely',
+            'gmail_cleaner.commands.delete_label.cleanup.delete_label_completely',
             return_value=LabelDeletion(1523, 2),
         ) as del_complete,
     ):
@@ -83,11 +83,11 @@ def test_delete_label_zero_messages_still_proceeds():
     with (
         patch('gmail_cleaner.auth.load_token', return_value=creds),
         patch(
-            'gmail_cleaner.commands.delete_label.gmail.find_label',
+            'gmail_cleaner.commands.delete_label.cleanup.find_label',
             return_value=LabelLookup(label, 0, False),
         ),
         patch(
-            'gmail_cleaner.commands.delete_label.gmail.delete_label_completely',
+            'gmail_cleaner.commands.delete_label.cleanup.delete_label_completely',
             return_value=LabelDeletion(0, 0),
         ) as del_complete,
     ):

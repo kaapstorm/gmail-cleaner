@@ -2,7 +2,7 @@ import functools
 
 import typer
 
-from gmail_cleaner import auth, gmail
+from gmail_cleaner import auth, cleanup
 from gmail_cleaner.commands._progress import format_progress
 
 
@@ -22,7 +22,7 @@ def delete_label(
         typer.echo('Not logged in')
         raise typer.Exit(1)
 
-    found = gmail.find_label(creds, label_name)
+    found = cleanup.find_label(creds, label_name)
     if found is None:
         typer.echo(f"Label '{label_name}' not found")
         raise typer.Exit(1)
@@ -37,7 +37,7 @@ def delete_label(
         )
 
     on_progress = functools.partial(format_progress, found.estimate)
-    result = gmail.delete_label_completely(
+    result = cleanup.delete_label_completely(
         creds,
         found.label,
         on_progress=on_progress,

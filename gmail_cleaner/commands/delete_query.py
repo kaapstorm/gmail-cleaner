@@ -2,7 +2,7 @@ import functools
 
 import typer
 
-from gmail_cleaner import auth, gmail
+from gmail_cleaner import auth, cleanup
 from gmail_cleaner.commands._progress import format_progress
 
 
@@ -22,7 +22,7 @@ def delete_query(
         typer.echo('Not logged in')
         raise typer.Exit(1)
 
-    scan = gmail.scan_for_messages(creds, query)
+    scan = cleanup.scan_for_messages(creds, query)
     if not scan.has_results:
         typer.echo('No matching messages')
         return
@@ -35,7 +35,7 @@ def delete_query(
         )
 
     on_progress = functools.partial(format_progress, scan.estimate)
-    deleted = gmail.delete_messages_matching(
+    deleted = cleanup.delete_messages_matching(
         creds,
         query,
         on_progress=on_progress,
