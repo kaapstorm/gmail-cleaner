@@ -1,6 +1,6 @@
 import time
 from collections.abc import Iterable, Iterator
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable, NamedTuple, TypeVar
 
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -11,6 +11,22 @@ _LIST_PAGE_SIZE = 500
 _DELETE_BATCH_SIZE = 500
 
 T = TypeVar('T')
+
+
+class ScanResult(NamedTuple):
+    estimate: int
+    has_results: bool
+
+
+class LabelLookup(NamedTuple):
+    label: dict
+    estimate: int
+    has_messages: bool
+
+
+class LabelDeletion(NamedTuple):
+    messages_deleted: int
+    filters_deleted: int
 
 
 def _is_retryable(exc: BaseException) -> bool:
@@ -160,7 +176,7 @@ def search_messages(
     return ids, estimate
 
 
-def scan_for_messages(creds, query: str) -> tuple[int, bool]:
+def scan_for_messages(creds, query: str) -> ScanResult:
     service = build_service(creds)
     response = (
         service.users()
@@ -170,7 +186,7 @@ def scan_for_messages(creds, query: str) -> tuple[int, bool]:
     )
     estimate = response.get('resultSizeEstimate', 0)
     has_results = bool(response.get('messages')) or 'nextPageToken' in response
-    return estimate, has_results
+    return ScanResult(estimate, has_results)
 
 
 def _list_filters(service) -> list[dict]:
@@ -205,7 +221,7 @@ def _delete_label_by_id(service, label_id: str) -> None:
 def find_label(
     creds,
     label_name: str,
-) -> tuple[dict, int, bool] | None:
+) -> LabelLookup | None:
     service = build_service(creds)
     for label in _list_user_labels(service):
         if label['name'] == label_name:
@@ -223,7 +239,7 @@ def find_label(
             has_messages = (
                 bool(response.get('messages')) or 'nextPageToken' in response
             )
-            return label, estimate, has_messages
+            return LabelLookup(label, estimate, has_messages)
     return None
 
 
@@ -232,7 +248,7 @@ def delete_label_completely(
     label: dict,
     *,
     on_progress: Callable[[int], None],
-) -> tuple[int, int]:
+) -> LabelDeletion:
     service = build_service(creds)
     label_id = label['id']
     messages_deleted = _delete_message_batches(
@@ -249,7 +265,7 @@ def delete_label_completely(
     for f in matching:
         _delete_filter(service, f['id'])
     _delete_label_by_id(service, label_id)
-    return messages_deleted, len(matching)
+    return LabelDeletion(messages_deleted, len(matching))
 
 
 def delete_messages_matching(

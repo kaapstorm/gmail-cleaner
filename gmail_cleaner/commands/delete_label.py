@@ -22,28 +22,28 @@ def delete_label(
         typer.echo('Not logged in')
         raise typer.Exit(1)
 
-    result = gmail.find_label(creds, label_name)
-    if result is None:
+    found = gmail.find_label(creds, label_name)
+    if found is None:
         typer.echo(f"Label '{label_name}' not found")
         raise typer.Exit(1)
-    label, estimate, _has_messages = result
 
     if not force:
         typer.confirm(
-            f'About {estimate:,} emails whose labels include '
+            f'About {found.estimate:,} emails whose labels include '
             f"'{label_name}' will be permanently deleted, along with "
             f"filters for '{label_name}' and the '{label_name}' label."
             f'\nProceed?',
             abort=True,
         )
 
-    on_progress = functools.partial(format_progress, estimate)
-    msgs, fs = gmail.delete_label_completely(
+    on_progress = functools.partial(format_progress, found.estimate)
+    result = gmail.delete_label_completely(
         creds,
-        label,
+        found.label,
         on_progress=on_progress,
     )
     typer.echo(
-        f"Deleted {msgs:,} messages, {fs} filters, and label '{label_name}'.",
+        f'Deleted {result.messages_deleted:,} messages, '
+        f"{result.filters_deleted} filters, and label '{label_name}'.",
         err=True,
     )

@@ -22,19 +22,19 @@ def delete_query(
         typer.echo('Not logged in')
         raise typer.Exit(1)
 
-    estimate, has_results = gmail.scan_for_messages(creds, query)
-    if not has_results:
+    scan = gmail.scan_for_messages(creds, query)
+    if not scan.has_results:
         typer.echo('No matching messages')
         return
 
     if not force:
         typer.confirm(
-            f'Permanently delete about {estimate:,} emails matching '
+            f'Permanently delete about {scan.estimate:,} emails matching '
             f"'{query}'?",
             abort=True,
         )
 
-    on_progress = functools.partial(format_progress, estimate)
+    on_progress = functools.partial(format_progress, scan.estimate)
     deleted = gmail.delete_messages_matching(
         creds,
         query,

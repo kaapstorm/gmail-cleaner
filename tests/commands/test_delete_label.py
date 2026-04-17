@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 from typer.testing import CliRunner
 
 from gmail_cleaner.cli import app
+from gmail_cleaner.gmail import LabelDeletion, LabelLookup
 
 runner = CliRunner()
 
@@ -35,7 +36,7 @@ def test_delete_label_aborted_by_user():
         patch('gmail_cleaner.auth.load_token', return_value=creds),
         patch(
             'gmail_cleaner.commands.delete_label.gmail.find_label',
-            return_value=(label, 5, True),
+            return_value=LabelLookup(label, 5, True),
         ),
         patch(
             'gmail_cleaner.commands.delete_label.gmail.delete_label_completely',
@@ -57,11 +58,11 @@ def test_delete_label_deletes_messages_filters_and_label():
         patch('gmail_cleaner.auth.load_token', return_value=creds),
         patch(
             'gmail_cleaner.commands.delete_label.gmail.find_label',
-            return_value=(label, 1523, True),
+            return_value=LabelLookup(label, 1523, True),
         ),
         patch(
             'gmail_cleaner.commands.delete_label.gmail.delete_label_completely',
-            return_value=(1523, 2),
+            return_value=LabelDeletion(1523, 2),
         ) as del_complete,
     ):
         result = runner.invoke(
@@ -83,11 +84,11 @@ def test_delete_label_zero_messages_still_proceeds():
         patch('gmail_cleaner.auth.load_token', return_value=creds),
         patch(
             'gmail_cleaner.commands.delete_label.gmail.find_label',
-            return_value=(label, 0, False),
+            return_value=LabelLookup(label, 0, False),
         ),
         patch(
             'gmail_cleaner.commands.delete_label.gmail.delete_label_completely',
-            return_value=(0, 0),
+            return_value=LabelDeletion(0, 0),
         ) as del_complete,
     ):
         result = runner.invoke(app, ['delete-label', '--force', 'X'])
