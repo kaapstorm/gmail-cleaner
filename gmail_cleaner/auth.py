@@ -49,7 +49,7 @@ def load_token() -> Credentials | None:
         return None
     try:
         creds = Credentials.from_authorized_user_file(str(token_path), SCOPES)
-    except ValueError, OSError:
+    except (ValueError, OSError):
         # Corrupt or unreadable token file — treat as no token. The user
         # can recover by running `gmc login` again.
         return None

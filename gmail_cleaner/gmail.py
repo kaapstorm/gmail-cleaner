@@ -50,7 +50,7 @@ def _retry_after_seconds(exc: BaseException) -> float | None:
         pass
     try:
         target = parsedate_to_datetime(raw)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return None
     if target is None:
         return None

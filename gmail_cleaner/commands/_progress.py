@@ -23,7 +23,7 @@ def report_progress(total_estimate: int, deleted: int) -> None:
 def format_date(raw: str) -> str:
     try:
         parsed = parsedate_to_datetime(raw)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return raw
     if parsed is None:
         return raw

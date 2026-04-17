@@ -19,7 +19,7 @@ def _format_count(num_returned: int, estimate: int) -> str:
 def _format_date(raw: str) -> str:
     try:
         parsed = parsedate_to_datetime(raw)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return raw
     if parsed is None:
         return raw
