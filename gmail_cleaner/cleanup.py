@@ -39,15 +39,13 @@ def _is_retryable(exc: BaseException) -> bool:
 
 
 def _with_retry(fn: Callable[..., T], *args: Any, **kwargs: Any) -> T:
-    delays = (0.0, *_RETRY_DELAYS)
-    for attempt, delay in enumerate(delays):
-        if delay:
-            time.sleep(delay)
+    for attempt in range(len(_RETRY_DELAYS) + 1):
         try:
             return fn(*args, **kwargs)
         except (OSError, TimeoutError, HttpError) as exc:
-            if not _is_retryable(exc) or attempt == len(delays) - 1:
+            if not _is_retryable(exc) or attempt == len(_RETRY_DELAYS):
                 raise
+            time.sleep(_RETRY_DELAYS[attempt])
     raise AssertionError('unreachable')  # pragma: no cover
 
 
