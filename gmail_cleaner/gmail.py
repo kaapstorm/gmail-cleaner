@@ -207,6 +207,58 @@ def search_messages(
     return ids, estimate
 
 
+_EXPORT_HEADERS = (
+    'Date', 'From', 'To', 'Cc', 'Subject',
+    'List-Id', 'List-Unsubscribe',
+)
+
+
+def _split_addresses(raw: str | None) -> list[str]:
+    if not raw:
+        return []
+    return [part.strip() for part in raw.split(',') if part.strip()]
+
+
+def fetch_message_export(service: Service, message_id: str) -> dict:
+    """Fetch a single message and return its export record."""
+    response = _with_retry(
+        service.users()
+        .messages()
+        .get(
+            userId='me',
+            id=message_id,
+            format='metadata',
+            metadataHeaders=list(_EXPORT_HEADERS),
+        )
+        .execute,
+    )
+    payload = response.get('payload', {}) or {}
+    headers = {
+        header['name']: header['value']
+        for header in payload.get('headers', [])
+        if header['name'] in _EXPORT_HEADERS
+    }
+    record: dict = {
+        'id': response.get('id', message_id),
+        'thread_id': response.get('threadId'),
+        'date': _parse_iso_date(headers.get('Date')),
+        'from': headers.get('From') or None,
+        'to': _split_addresses(headers.get('To')),
+        'cc': _split_addresses(headers.get('Cc')),
+        'subject': headers.get('Subject') or None,
+        'list_id': headers.get('List-Id') or None,
+        'list_unsubscribe': headers.get('List-Unsubscribe') or None,
+        'labels': list(response.get('labelIds', [])),
+        'snippet': response.get('snippet', ''),
+    }
+    attachments = _extract_attachments(payload)
+    if attachments is None:
+        record['has_attachments'] = True
+    else:
+        record['attachments'] = attachments
+    return record
+
+
 _WANTED_HEADERS = ('Date', 'From', 'Subject')
 
 

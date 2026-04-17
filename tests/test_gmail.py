@@ -423,3 +423,117 @@ def test_extract_attachments(payload, expected):
 def test_extract_attachments_indeterminate_returns_none():
     payload = {'mimeType': 'multipart/mixed'}
     assert gmail._extract_attachments(payload) is None
+
+
+def _make_message(
+    headers=None, *, labels=None, snippet='...', payload_extra=None
+):
+    payload = {'headers': headers or [], 'mimeType': 'text/plain'}
+    if payload_extra:
+        payload.update(payload_extra)
+    return {
+        'id': 'mid',
+        'threadId': 'tid',
+        'labelIds': labels or [],
+        'snippet': snippet,
+        'payload': payload,
+    }
+
+
+def test_fetch_message_export_full_record():
+    mock_service = MagicMock()
+    mock_service.users().messages().get().execute.return_value = _make_message(
+        headers=[
+            {'name': 'Date', 'value': 'Mon, 13 Apr 2026 14:30:00 -0400'},
+            {'name': 'From', 'value': 'Alice <alice@example.com>'},
+            {'name': 'To', 'value': 'me@example.com, other@example.com'},
+            {'name': 'Cc', 'value': 'cc@example.com'},
+            {'name': 'Subject', 'value': 'Re: lunch'},
+            {'name': 'List-Id', 'value': '<news.example.com>'},
+            {'name': 'List-Unsubscribe', 'value': '<mailto:u@example.com>'},
+        ],
+        labels=['INBOX', 'IMPORTANT'],
+        snippet='Sounds good',
+        payload_extra={
+            'mimeType': 'multipart/mixed',
+            'parts': [
+                {'mimeType': 'text/plain', 'filename': ''},
+                {
+                    'mimeType': 'application/pdf',
+                    'filename': 'menu.pdf',
+                    'body': {'size': 48213},
+                },
+            ],
+        },
+    )
+    result = gmail.fetch_message_export(mock_service, 'mid')
+    assert result == {
+        'id': 'mid',
+        'thread_id': 'tid',
+        'date': '2026-04-13T14:30:00-04:00',
+        'from': 'Alice <alice@example.com>',
+        'to': ['me@example.com', 'other@example.com'],
+        'cc': ['cc@example.com'],
+        'subject': 'Re: lunch',
+        'list_id': '<news.example.com>',
+        'list_unsubscribe': '<mailto:u@example.com>',
+        'labels': ['INBOX', 'IMPORTANT'],
+        'snippet': 'Sounds good',
+        'attachments': [
+            {
+                'filename': 'menu.pdf',
+                'mime_type': 'application/pdf',
+                'size': 48213,
+            },
+        ],
+    }
+
+
+def test_fetch_message_export_missing_headers_use_sensible_defaults():
+    mock_service = MagicMock()
+    mock_service.users().messages().get().execute.return_value = _make_message(
+        headers=[],
+        labels=['INBOX'],
+        snippet='hi',
+    )
+    result = gmail.fetch_message_export(mock_service, 'mid')
+    assert result['date'] is None
+    assert result['from'] is None
+    assert result['to'] == []
+    assert result['cc'] == []
+    assert result['subject'] is None
+    assert result['list_id'] is None
+    assert result['list_unsubscribe'] is None
+    assert result['attachments'] == []
+
+
+def test_fetch_message_export_indeterminate_attachments_uses_has_attachments():
+    mock_service = MagicMock()
+    mock_service.users().messages().get().execute.return_value = _make_message(
+        payload_extra={'mimeType': 'multipart/mixed'},
+    )
+    result = gmail.fetch_message_export(mock_service, 'mid')
+    assert 'attachments' not in result
+    assert result['has_attachments'] is True
+
+
+def test_fetch_message_export_uses_metadata_format_and_header_allowlist():
+    mock_service = MagicMock()
+    mock_service.users().messages().get().execute.return_value = (
+        _make_message()
+    )
+    gmail.fetch_message_export(mock_service, 'mid')
+    mock_service.users().messages().get.assert_called_with(
+        userId='me',
+        id='mid',
+        format='metadata',
+        metadataHeaders=[
+            'Date',
+            'From',
+            'To',
+            'Cc',
+            'Subject',
+            'List-Id',
+            'List-Unsubscribe',
+        ],
+    )
