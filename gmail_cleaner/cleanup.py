@@ -45,7 +45,7 @@ def _with_retry(fn: Callable[..., T], *args: Any, **kwargs: Any) -> T:
             time.sleep(delay)
         try:
             return fn(*args, **kwargs)
-        except Exception as exc:
+        except (OSError, TimeoutError, HttpError) as exc:
             if not _is_retryable(exc):
                 raise
             last_exc = exc
