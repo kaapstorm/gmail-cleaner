@@ -1,8 +1,9 @@
 from collections.abc import Iterator
 from email.utils import parsedate_to_datetime
-from typing import Any
+from typing import Any, Callable
 
 from google.oauth2.credentials import Credentials
+from googleapiclient.errors import HttpError
 
 from gmail_cleaner.gmail import (
     Service,
@@ -10,6 +11,8 @@ from gmail_cleaner.gmail import (
     _with_retry,
     build_service,
 )
+
+OnError = Callable[[str, HttpError], None]
 
 
 def _parse_iso_date(raw: str | None) -> str | None:
@@ -117,9 +120,8 @@ def fetch_message_export(service: Service, message_id: str) -> dict:
     return record
 
 
-def iter_inbox_ids(creds: Credentials) -> Iterator[str]:
+def iter_inbox_ids(service: Service) -> Iterator[str]:
     """Yield the ID of every message currently in INBOX."""
-    service = build_service(creds)
     page_token: str | None = None
     while True:
         kwargs: dict[str, Any] = {'userId': 'me', 'q': 'in:inbox'}
@@ -133,3 +135,23 @@ def iter_inbox_ids(creds: Credentials) -> Iterator[str]:
         page_token = response.get('nextPageToken')
         if not page_token:
             return
+
+
+def iter_inbox_records(
+    creds: Credentials,
+    *,
+    on_error: OnError,
+) -> Iterator[dict]:
+    """Yield an export record for every message currently in INBOX.
+
+    Builds one Gmail service and threads it through the id paginator
+    and the per-message fetch. Messages that raise ``HttpError`` are
+    reported via ``on_error(message_id, exc)`` and skipped; the
+    iteration continues.
+    """
+    service = build_service(creds)
+    for message_id in iter_inbox_ids(service):
+        try:
+            yield fetch_message_export(service, message_id)
+        except HttpError as exc:
+            on_error(message_id, exc)

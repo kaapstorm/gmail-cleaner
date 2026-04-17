@@ -215,42 +215,28 @@ def test_fetch_message_export_uses_metadata_format_and_header_allowlist():
 
 
 def test_iter_inbox_ids_paginates_until_exhausted():
-    mock_creds = MagicMock()
     mock_service = MagicMock()
     mock_service.users().messages().list().execute.side_effect = [
         {'messages': [{'id': 'a'}, {'id': 'b'}], 'nextPageToken': 'p2'},
         {'messages': [{'id': 'c'}]},
     ]
-    with patch(
-        'gmail_cleaner.export.build_service', return_value=mock_service
-    ):
-        result = list(export.iter_inbox_ids(mock_creds))
-    assert result == ['a', 'b', 'c']
+    assert list(export.iter_inbox_ids(mock_service)) == ['a', 'b', 'c']
 
 
 def test_iter_inbox_ids_handles_empty_inbox():
-    mock_creds = MagicMock()
     mock_service = MagicMock()
     mock_service.users().messages().list().execute.return_value = {}
-    with patch(
-        'gmail_cleaner.export.build_service', return_value=mock_service
-    ):
-        result = list(export.iter_inbox_ids(mock_creds))
-    assert result == []
+    assert list(export.iter_inbox_ids(mock_service)) == []
 
 
 def test_iter_inbox_ids_passes_query_and_page_token():
-    mock_creds = MagicMock()
     mock_service = MagicMock()
     list_mock = mock_service.users().messages().list
     list_mock().execute.side_effect = [
         {'messages': [{'id': 'a'}], 'nextPageToken': 'tok'},
         {'messages': [{'id': 'b'}]},
     ]
-    with patch(
-        'gmail_cleaner.export.build_service', return_value=mock_service
-    ):
-        list(export.iter_inbox_ids(mock_creds))
+    list(export.iter_inbox_ids(mock_service))
     calls = list_mock.call_args_list
     # Filter out the accessor calls (no kwargs) from our two paginated calls.
     paginated = [call for call in calls if call.kwargs]
@@ -260,3 +246,40 @@ def test_iter_inbox_ids_passes_query_and_page_token():
         'q': 'in:inbox',
         'pageToken': 'tok',
     }
+
+
+def test_iter_inbox_records_yields_records_and_reports_errors():
+    from googleapiclient.errors import HttpError
+
+    mock_creds = MagicMock()
+    mock_service = MagicMock()
+
+    def _fetch(_svc, mid):
+        if mid == 'b':
+            raise HttpError(MagicMock(status=404), b'')
+        return {'id': mid}
+
+    errors: list[tuple[str, HttpError]] = []
+
+    def _on_error(message_id, exc):
+        errors.append((message_id, exc))
+
+    with (
+        patch(
+            'gmail_cleaner.export.build_service',
+            return_value=mock_service,
+        ),
+        patch(
+            'gmail_cleaner.export.iter_inbox_ids',
+            return_value=iter(['a', 'b', 'c']),
+        ),
+        patch(
+            'gmail_cleaner.export.fetch_message_export',
+            side_effect=_fetch,
+        ),
+    ):
+        records = list(
+            export.iter_inbox_records(mock_creds, on_error=_on_error),
+        )
+    assert [r['id'] for r in records] == ['a', 'c']
+    assert [mid for mid, _exc in errors] == ['b']

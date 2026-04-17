@@ -27,6 +27,13 @@ def _record(mid: str) -> dict:
     }
 
 
+def _iter_records(ids):
+    def _side_effect(_creds, *, on_error):
+        return iter(_record(mid) for mid in ids)
+
+    return _side_effect
+
+
 def test_export_inbox_not_logged_in_exits_with_error():
     with patch('gmail_cleaner.auth.load_token', return_value=None):
         result = runner.invoke(app, ['export-inbox', '/tmp/out.jsonl'])
@@ -42,16 +49,8 @@ def test_export_inbox_writes_jsonl_to_file():
     with (
         patch('gmail_cleaner.auth.load_token', return_value=mock_creds),
         patch(
-            'gmail_cleaner.commands.export_inbox.export.iter_inbox_ids',
-            return_value=iter(ids),
-        ),
-        patch(
-            'gmail_cleaner.commands.export_inbox.gmail.build_service',
-            return_value=MagicMock(),
-        ),
-        patch(
-            'gmail_cleaner.commands.export_inbox.export.fetch_message_export',
-            side_effect=lambda _svc, mid: _record(mid),
+            'gmail_cleaner.commands.export_inbox.export.iter_inbox_records',
+            side_effect=_iter_records(ids),
         ),
     ):
         result = runner.invoke(app, ['export-inbox', str(out)])
@@ -66,16 +65,8 @@ def test_export_inbox_writes_to_stdout_when_output_is_dashdash():
     with (
         patch('gmail_cleaner.auth.load_token', return_value=mock_creds),
         patch(
-            'gmail_cleaner.commands.export_inbox.export.iter_inbox_ids',
-            return_value=iter(ids),
-        ),
-        patch(
-            'gmail_cleaner.commands.export_inbox.gmail.build_service',
-            return_value=MagicMock(),
-        ),
-        patch(
-            'gmail_cleaner.commands.export_inbox.export.fetch_message_export',
-            side_effect=lambda _svc, mid: _record(mid),
+            'gmail_cleaner.commands.export_inbox.export.iter_inbox_records',
+            side_effect=_iter_records(ids),
         ),
     ):
         result = runner.invoke(app, ['export-inbox', '--', '--'])
@@ -90,26 +81,19 @@ def test_export_inbox_skips_messages_that_error():
 
     out = tmp_dir() / 'out.jsonl'
     mock_creds = MagicMock()
-    ids = ['a', 'b', 'c']
 
-    def _fetch(_svc, mid):
-        if mid == 'b':
-            raise HttpError(MagicMock(status=404), b'')
-        return _record(mid)
+    def _side_effect(_creds, *, on_error):
+        for mid in ['a', 'b', 'c']:
+            if mid == 'b':
+                on_error(mid, HttpError(MagicMock(status=404), b''))
+                continue
+            yield _record(mid)
 
     with (
         patch('gmail_cleaner.auth.load_token', return_value=mock_creds),
         patch(
-            'gmail_cleaner.commands.export_inbox.export.iter_inbox_ids',
-            return_value=iter(ids),
-        ),
-        patch(
-            'gmail_cleaner.commands.export_inbox.gmail.build_service',
-            return_value=MagicMock(),
-        ),
-        patch(
-            'gmail_cleaner.commands.export_inbox.export.fetch_message_export',
-            side_effect=_fetch,
+            'gmail_cleaner.commands.export_inbox.export.iter_inbox_records',
+            side_effect=_side_effect,
         ),
     ):
         result = runner.invoke(app, ['export-inbox', str(out)])
