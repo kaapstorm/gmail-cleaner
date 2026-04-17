@@ -39,18 +39,16 @@ def _is_retryable(exc: BaseException) -> bool:
 
 
 def _with_retry(fn: Callable[..., T], *args: Any, **kwargs: Any) -> T:
-    last_exc: BaseException | None = None
-    for delay in (0.0, *_RETRY_DELAYS):
+    delays = (0.0, *_RETRY_DELAYS)
+    for attempt, delay in enumerate(delays):
         if delay:
             time.sleep(delay)
         try:
             return fn(*args, **kwargs)
         except (OSError, TimeoutError, HttpError) as exc:
-            if not _is_retryable(exc):
+            if not _is_retryable(exc) or attempt == len(delays) - 1:
                 raise
-            last_exc = exc
-    assert last_exc is not None
-    raise last_exc
+    raise AssertionError('unreachable')  # pragma: no cover
 
 
 def _list_messages_kwargs(
