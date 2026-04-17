@@ -131,12 +131,16 @@ def test_delete_label_dry_run_shows_count_filters_and_sample():
             return_value=preview,
         ) as preview_call,
         patch(
-            'gmail_cleaner.commands._progress.gmail.get_message_headers',
-            return_value={
-                'Date': 'Mon, 13 Apr 2026 14:30:00 -0400',
-                'From': 'Alice <a@example.com>',
-                'Subject': 'Hi',
-            },
+            'gmail_cleaner.commands._progress.gmail.iter_message_headers',
+            return_value=iter(
+                [
+                    {
+                        'Date': 'Mon, 13 Apr 2026 14:30:00 -0400',
+                        'From': 'Alice <a@example.com>',
+                        'Subject': 'Hi',
+                    },
+                ],
+            ),
         ),
         patch(
             'gmail_cleaner.commands.delete_label.cleanup.delete_label_completely',

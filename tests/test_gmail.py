@@ -152,7 +152,7 @@ def test_search_messages_passes_query_and_max_results():
     )
 
 
-def test_get_message_headers_extracts_three_headers():
+def test_iter_message_headers_extracts_three_headers():
     mock_creds = MagicMock()
     mock_service = MagicMock()
     mock_service.users().messages().get().execute.return_value = {
@@ -166,39 +166,55 @@ def test_get_message_headers_extracts_three_headers():
         },
     }
     with patch('gmail_cleaner.gmail.build', return_value=mock_service):
-        headers = gmail.get_message_headers(mock_creds, 'm1')
-    assert headers == {
-        'Date': 'Mon, 13 Apr 2026 14:30:00 -0400',
-        'From': 'Alice <alice@example.com>',
-        'Subject': 'Hi there',
-    }
+        results = list(gmail.iter_message_headers(mock_creds, ['m1']))
+    assert results == [
+        {
+            'Date': 'Mon, 13 Apr 2026 14:30:00 -0400',
+            'From': 'Alice <alice@example.com>',
+            'Subject': 'Hi there',
+        },
+    ]
 
 
-def test_get_message_headers_missing_headers_default_to_empty_string():
+def test_iter_message_headers_missing_headers_default_to_empty_string():
     mock_creds = MagicMock()
     mock_service = MagicMock()
     mock_service.users().messages().get().execute.return_value = {
         'payload': {'headers': []},
     }
     with patch('gmail_cleaner.gmail.build', return_value=mock_service):
-        headers = gmail.get_message_headers(mock_creds, 'm1')
-    assert headers == {'Date': '', 'From': '', 'Subject': ''}
+        results = list(gmail.iter_message_headers(mock_creds, ['m1']))
+    assert results == [{'Date': '', 'From': '', 'Subject': ''}]
 
 
-def test_get_message_headers_uses_metadata_format():
+def test_iter_message_headers_uses_metadata_format():
     mock_creds = MagicMock()
     mock_service = MagicMock()
     mock_service.users().messages().get().execute.return_value = {
         'payload': {'headers': []},
     }
     with patch('gmail_cleaner.gmail.build', return_value=mock_service):
-        gmail.get_message_headers(mock_creds, 'm1')
+        list(gmail.iter_message_headers(mock_creds, ['m1']))
     mock_service.users().messages().get.assert_called_with(
         userId='me',
         id='m1',
         format='metadata',
         metadataHeaders=['Date', 'From', 'Subject'],
     )
+
+
+def test_iter_message_headers_builds_service_once():
+    mock_creds = MagicMock()
+    mock_service = MagicMock()
+    mock_service.users().messages().get().execute.return_value = {
+        'payload': {'headers': []},
+    }
+    with patch(
+        'gmail_cleaner.gmail.build',
+        return_value=mock_service,
+    ) as mock_build:
+        list(gmail.iter_message_headers(mock_creds, ['m1', 'm2', 'm3']))
+    assert mock_build.call_count == 1
 
 
 def test_with_retry_returns_value_on_first_success():

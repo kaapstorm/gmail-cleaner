@@ -31,7 +31,6 @@ def format_date(raw: str) -> str:
 
 
 def echo_sample(creds: Credentials, sample_ids: list[str]) -> None:
-    for message_id in sample_ids:
-        headers = gmail.get_message_headers(creds, message_id)
+    for headers in gmail.iter_message_headers(creds, sample_ids):
         date = format_date(headers['Date'])
         typer.echo(f'{date}  {headers["From"]}  {headers["Subject"]}')

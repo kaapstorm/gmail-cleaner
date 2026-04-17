@@ -44,7 +44,6 @@ def list_query(
     )
     typer.echo(_format_count(len(ids), estimate))
     typer.echo('')
-    for message_id in ids[:PREVIEW_LIMIT]:
-        headers = gmail.get_message_headers(creds, message_id)
+    for headers in gmail.iter_message_headers(creds, ids[:PREVIEW_LIMIT]):
         date = _format_date(headers['Date'])
         typer.echo(f'{date}  {headers["From"]}  {headers["Subject"]}')

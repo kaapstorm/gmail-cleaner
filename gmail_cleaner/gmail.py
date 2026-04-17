@@ -1,4 +1,5 @@
 import time
+from collections.abc import Iterable, Iterator
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from typing import Any, Callable, TypeAlias, TypeVar
@@ -157,11 +158,10 @@ def search_messages(
 _WANTED_HEADERS = ('Date', 'From', 'Subject')
 
 
-def get_message_headers(
-    creds: Credentials,
+def _fetch_message_headers(
+    service: Service,
     message_id: str,
 ) -> dict[str, str]:
-    service = build_service(creds)
     response = _with_retry(
         service.users()
         .messages()
@@ -179,3 +179,17 @@ def get_message_headers(
         if header['name'] in _WANTED_HEADERS
     }
     return {name: found.get(name, '') for name in _WANTED_HEADERS}
+
+
+def iter_message_headers(
+    creds: Credentials,
+    message_ids: Iterable[str],
+) -> Iterator[dict[str, str]]:
+    """Yield header metadata for each id using a single Gmail client.
+
+    Builds one service and reuses it across the iteration so callers
+    rendering a preview don't pay for a rebuild per message.
+    """
+    service = build_service(creds)
+    for message_id in message_ids:
+        yield _fetch_message_headers(service, message_id)
