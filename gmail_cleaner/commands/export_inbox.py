@@ -7,7 +7,7 @@ from typing import IO, Iterator
 import typer
 from googleapiclient.errors import HttpError
 
-from gmail_cleaner import auth, gmail
+from gmail_cleaner import auth, export, gmail
 
 STDOUT_MARKER = '--'
 PROGRESS_EVERY = 50
@@ -49,9 +49,9 @@ def export_inbox(
     service = gmail.build_service(creds)
     written = 0
     with _open_output(output) as handle:
-        for message_id in gmail.iter_inbox_ids(creds):
+        for message_id in export.iter_inbox_ids(creds):
             try:
-                record = gmail.fetch_message_export(service, message_id)
+                record = export.fetch_message_export(service, message_id)
             except HttpError as exc:
                 print(
                     f'skipped {message_id}: {exc}',

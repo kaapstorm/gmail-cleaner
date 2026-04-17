@@ -42,7 +42,7 @@ def test_export_inbox_writes_jsonl_to_file():
     with (
         patch('gmail_cleaner.auth.load_token', return_value=mock_creds),
         patch(
-            'gmail_cleaner.commands.export_inbox.gmail.iter_inbox_ids',
+            'gmail_cleaner.commands.export_inbox.export.iter_inbox_ids',
             return_value=iter(ids),
         ),
         patch(
@@ -50,7 +50,7 @@ def test_export_inbox_writes_jsonl_to_file():
             return_value=MagicMock(),
         ),
         patch(
-            'gmail_cleaner.commands.export_inbox.gmail.fetch_message_export',
+            'gmail_cleaner.commands.export_inbox.export.fetch_message_export',
             side_effect=lambda _svc, mid: _record(mid),
         ),
     ):
@@ -66,7 +66,7 @@ def test_export_inbox_writes_to_stdout_when_output_is_dashdash():
     with (
         patch('gmail_cleaner.auth.load_token', return_value=mock_creds),
         patch(
-            'gmail_cleaner.commands.export_inbox.gmail.iter_inbox_ids',
+            'gmail_cleaner.commands.export_inbox.export.iter_inbox_ids',
             return_value=iter(ids),
         ),
         patch(
@@ -74,7 +74,7 @@ def test_export_inbox_writes_to_stdout_when_output_is_dashdash():
             return_value=MagicMock(),
         ),
         patch(
-            'gmail_cleaner.commands.export_inbox.gmail.fetch_message_export',
+            'gmail_cleaner.commands.export_inbox.export.fetch_message_export',
             side_effect=lambda _svc, mid: _record(mid),
         ),
     ):
@@ -100,7 +100,7 @@ def test_export_inbox_skips_messages_that_error():
     with (
         patch('gmail_cleaner.auth.load_token', return_value=mock_creds),
         patch(
-            'gmail_cleaner.commands.export_inbox.gmail.iter_inbox_ids',
+            'gmail_cleaner.commands.export_inbox.export.iter_inbox_ids',
             return_value=iter(ids),
         ),
         patch(
@@ -108,7 +108,7 @@ def test_export_inbox_skips_messages_that_error():
             return_value=MagicMock(),
         ),
         patch(
-            'gmail_cleaner.commands.export_inbox.gmail.fetch_message_export',
+            'gmail_cleaner.commands.export_inbox.export.fetch_message_export',
             side_effect=_fetch,
         ),
     ):
