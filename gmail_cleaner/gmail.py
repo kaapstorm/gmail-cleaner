@@ -1,5 +1,72 @@
+import time
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
+from typing import Any, Callable, TypeVar
+
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+
+_RETRY_DELAYS = (2.5, 5.0)
+
+T = TypeVar('T')
+
+
+def _is_retryable(exc: BaseException) -> bool:
+    if isinstance(exc, (OSError, TimeoutError)):
+        return True
+    if isinstance(exc, HttpError):
+        status = getattr(exc.resp, 'status', None)
+        return status == 429 or (status is not None and status >= 500)
+    return False
+
+
+def _retry_after_seconds(exc: BaseException) -> float | None:
+    """Return the Retry-After delay advertised by the server, if any.
+
+    Accepts integer seconds (``Retry-After: 30``) or an HTTP-date
+    (``Retry-After: Wed, 21 Oct 2026 07:28:00 GMT``). Returns None
+    when the header is absent, malformed, or the exception isn't an
+    HttpError.
+    """
+    if not isinstance(exc, HttpError):
+        return None
+    headers = getattr(exc.resp, 'headers', None)
+    if not headers:
+        return None
+    raw = headers.get('retry-after') or headers.get('Retry-After')
+    if not raw:
+        return None
+    try:
+        return max(0.0, float(raw))
+    except ValueError:
+        pass
+    try:
+        target = parsedate_to_datetime(raw)
+    except TypeError, ValueError:
+        return None
+    if target is None:
+        return None
+    if target.tzinfo is None:
+        target = target.replace(tzinfo=timezone.utc)
+    return max(0.0, (target - datetime.now(timezone.utc)).total_seconds())
+
+
+def _with_retry(fn: Callable[..., T], *args: Any, **kwargs: Any) -> T:
+    for attempt in range(len(_RETRY_DELAYS) + 1):
+        try:
+            return fn(*args, **kwargs)
+        except (OSError, TimeoutError, HttpError) as exc:
+            if not _is_retryable(exc) or attempt == len(_RETRY_DELAYS):
+                raise
+            server_delay = _retry_after_seconds(exc)
+            delay = (
+                server_delay
+                if server_delay is not None
+                else _RETRY_DELAYS[attempt]
+            )
+            time.sleep(delay)
+    raise AssertionError('unreachable')  # pragma: no cover
 
 
 def build_service(creds: Credentials):
@@ -8,12 +75,16 @@ def build_service(creds: Credentials):
 
 def get_user_email(creds: Credentials) -> str:
     service = build_service(creds)
-    profile = service.users().getProfile(userId='me').execute()
+    profile = _with_retry(
+        service.users().getProfile(userId='me').execute,
+    )
     return profile['emailAddress']
 
 
 def _list_user_labels(service) -> list[dict]:
-    response = service.users().labels().list(userId='me').execute()
+    response = _with_retry(
+        service.users().labels().list(userId='me').execute,
+    )
     user_labels = [
         label
         for label in response.get('labels', [])
@@ -27,7 +98,7 @@ def _label_has_recent_message(
     label_id: str,
     age: str,
 ) -> bool:
-    response = (
+    response = _with_retry(
         service.users()
         .messages()
         .list(
@@ -36,7 +107,7 @@ def _label_has_recent_message(
             q=f'newer_than:{age}',
             maxResults=1,
         )
-        .execute()
+        .execute,
     )
     return bool(response.get('messages'))
 
@@ -62,7 +133,7 @@ def search_messages(
     max_results: int,
 ) -> tuple[list[str], int]:
     service = build_service(creds)
-    response = (
+    response = _with_retry(
         service.users()
         .messages()
         .list(
@@ -70,7 +141,7 @@ def search_messages(
             q=query,
             maxResults=max_results,
         )
-        .execute()
+        .execute,
     )
     ids = [m['id'] for m in response.get('messages', [])]
     estimate = response.get('resultSizeEstimate', 0)
@@ -85,7 +156,7 @@ def get_message_headers(
     message_id: str,
 ) -> dict[str, str]:
     service = build_service(creds)
-    response = (
+    response = _with_retry(
         service.users()
         .messages()
         .get(
@@ -94,7 +165,7 @@ def get_message_headers(
             format='metadata',
             metadataHeaders=list(_WANTED_HEADERS),
         )
-        .execute()
+        .execute,
     )
     found = {
         header['name']: header['value']

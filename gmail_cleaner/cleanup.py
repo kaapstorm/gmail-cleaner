@@ -1,18 +1,10 @@
-import time
 from collections.abc import Iterable, Iterator
-from datetime import datetime, timezone
-from email.utils import parsedate_to_datetime
-from typing import Any, Callable, NamedTuple, TypeVar
+from typing import Callable, NamedTuple
 
-from googleapiclient.errors import HttpError
+from gmail_cleaner.gmail import _list_user_labels, _with_retry, build_service
 
-from gmail_cleaner.gmail import _list_user_labels, build_service
-
-_RETRY_DELAYS = (2.5, 5.0)
 _LIST_PAGE_SIZE = 500
 _DELETE_BATCH_SIZE = 500
-
-T = TypeVar('T')
 
 
 class ScanResult(NamedTuple):
@@ -29,63 +21,6 @@ class LabelLookup(NamedTuple):
 class LabelDeletion(NamedTuple):
     messages_deleted: int
     filters_deleted: int
-
-
-def _is_retryable(exc: BaseException) -> bool:
-    if isinstance(exc, (OSError, TimeoutError)):
-        return True
-    if isinstance(exc, HttpError):
-        status = getattr(exc.resp, 'status', None)
-        return status == 429 or (status is not None and status >= 500)
-    return False
-
-
-def _retry_after_seconds(exc: BaseException) -> float | None:
-    """Return the Retry-After delay advertised by the server, if any.
-
-    Accepts integer seconds (``Retry-After: 30``) or an HTTP-date
-    (``Retry-After: Wed, 21 Oct 2026 07:28:00 GMT``). Returns None
-    when the header is absent, malformed, or the exception isn't an
-    HttpError.
-    """
-    if not isinstance(exc, HttpError):
-        return None
-    headers = getattr(exc.resp, 'headers', None)
-    if not headers:
-        return None
-    raw = headers.get('retry-after') or headers.get('Retry-After')
-    if not raw:
-        return None
-    try:
-        return max(0.0, float(raw))
-    except ValueError:
-        pass
-    try:
-        target = parsedate_to_datetime(raw)
-    except TypeError, ValueError:
-        return None
-    if target is None:
-        return None
-    if target.tzinfo is None:
-        target = target.replace(tzinfo=timezone.utc)
-    return max(0.0, (target - datetime.now(timezone.utc)).total_seconds())
-
-
-def _with_retry(fn: Callable[..., T], *args: Any, **kwargs: Any) -> T:
-    for attempt in range(len(_RETRY_DELAYS) + 1):
-        try:
-            return fn(*args, **kwargs)
-        except (OSError, TimeoutError, HttpError) as exc:
-            if not _is_retryable(exc) or attempt == len(_RETRY_DELAYS):
-                raise
-            server_delay = _retry_after_seconds(exc)
-            delay = (
-                server_delay
-                if server_delay is not None
-                else _RETRY_DELAYS[attempt]
-            )
-            time.sleep(delay)
-    raise AssertionError('unreachable')  # pragma: no cover
 
 
 def _list_messages_kwargs(
@@ -113,7 +48,7 @@ def _iter_message_ids(
         .list(**_list_messages_kwargs(query=query, label_ids=label_ids))
     )
     while request is not None:
-        response = request.execute()
+        response = _with_retry(request.execute)
         for message in response.get('messages', []):
             yield message['id']
         request = (
@@ -156,30 +91,24 @@ def _delete_message_batches(
 
 def _list_filters(service) -> list[dict]:
     response = _with_retry(
-        lambda: (
-            service.users().settings().filters().list(userId='me').execute()
-        ),
+        service.users().settings().filters().list(userId='me').execute,
     )
     return response.get('filter', [])
 
 
 def _delete_filter(service, filter_id: str) -> None:
     _with_retry(
-        lambda: (
-            service.users()
-            .settings()
-            .filters()
-            .delete(userId='me', id=filter_id)
-            .execute()
-        ),
+        service.users()
+        .settings()
+        .filters()
+        .delete(userId='me', id=filter_id)
+        .execute,
     )
 
 
 def _delete_label_by_id(service, label_id: str) -> None:
     _with_retry(
-        lambda: (
-            service.users().labels().delete(userId='me', id=label_id).execute()
-        ),
+        service.users().labels().delete(userId='me', id=label_id).execute,
     )
 
 
@@ -189,11 +118,11 @@ def _peek_query(
     query: str | None = None,
     label_ids: list[str] | None = None,
 ) -> ScanResult:
-    response = (
+    response = _with_retry(
         service.users()
         .messages()
         .list(**_list_messages_kwargs(query=query, label_ids=label_ids))
-        .execute()
+        .execute,
     )
     estimate = response.get('resultSizeEstimate', 0)
     has_results = bool(response.get('messages')) or 'nextPageToken' in response
