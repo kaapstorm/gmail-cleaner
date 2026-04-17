@@ -1,0 +1,66 @@
+import json
+import sys
+from contextlib import contextmanager
+from pathlib import Path
+from typing import IO, Iterator
+
+import typer
+from googleapiclient.errors import HttpError
+
+from gmail_cleaner import auth, gmail
+
+STDOUT_MARKER = '--'
+PROGRESS_EVERY = 50
+
+# Note on the '--' marker: Click (which Typer wraps) treats a bare
+# '--' token on the command line as the end-of-options marker, so the
+# shell invocation for stdout output is:
+#
+#     gmc export-inbox -- --
+#
+# The first '--' ends option parsing; the second is the OUTPUT value
+# passed to this command. The README and tests reflect this.
+
+
+@contextmanager
+def _open_output(path: str) -> Iterator[IO[str]]:
+    if path == STDOUT_MARKER:
+        yield sys.stdout
+        return
+    with Path(path).open('w', encoding='utf-8') as handle:
+        yield handle
+
+
+def _report(written: int) -> None:
+    print(f'Exported {written:,} messages...', file=sys.stderr)
+
+
+def export_inbox(
+    output: str = typer.Argument(
+        ...,
+        help='Path to write JSONL output. Use "--" to write to stdout.',
+    ),
+) -> None:
+    creds = auth.load_token()
+    if creds is None:
+        typer.echo('Not logged in')
+        raise typer.Exit(1)
+
+    service = gmail.build_service(creds)
+    written = 0
+    with _open_output(output) as handle:
+        for message_id in gmail.iter_inbox_ids(creds):
+            try:
+                record = gmail.fetch_message_export(service, message_id)
+            except HttpError as exc:
+                print(
+                    f'skipped {message_id}: {exc}',
+                    file=sys.stderr,
+                )
+                continue
+            handle.write(json.dumps(record))
+            handle.write('\n')
+            written += 1
+            if written % PROGRESS_EVERY == 0:
+                _report(written)
+    _report(written)

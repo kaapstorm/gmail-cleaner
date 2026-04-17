@@ -2,6 +2,7 @@ import typer
 
 from gmail_cleaner.commands.delete_label import delete_label
 from gmail_cleaner.commands.delete_query import delete_query
+from gmail_cleaner.commands.export_inbox import export_inbox
 from gmail_cleaner.commands.list_query import list_query
 from gmail_cleaner.commands.login import login
 from gmail_cleaner.commands.logout import logout
@@ -27,3 +28,6 @@ app.command(
 app.command(
     help='Permanently delete a label, its filters, and all emails it labels.',
 )(delete_label)
+app.command(
+    help='Export inbox messages as JSONL for filter-optimization analysis.',
+)(export_inbox)
