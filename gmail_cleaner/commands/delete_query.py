@@ -3,7 +3,7 @@ import functools
 import typer
 
 from gmail_cleaner import auth, cleanup
-from gmail_cleaner.commands._progress import format_progress
+from gmail_cleaner.commands._progress import report_progress
 
 
 def delete_query(
@@ -34,7 +34,7 @@ def delete_query(
             abort=True,
         )
 
-    on_progress = functools.partial(format_progress, scan.estimate)
+    on_progress = functools.partial(report_progress, scan.estimate)
     deleted = cleanup.delete_messages_matching(
         creds,
         query,

@@ -3,7 +3,7 @@ import functools
 import typer
 
 from gmail_cleaner import auth, cleanup
-from gmail_cleaner.commands._progress import format_progress
+from gmail_cleaner.commands._progress import report_progress
 
 
 def delete_label(
@@ -36,7 +36,7 @@ def delete_label(
             abort=True,
         )
 
-    on_progress = functools.partial(format_progress, found.estimate)
+    on_progress = functools.partial(report_progress, found.estimate)
     result = cleanup.delete_label_completely(
         creds,
         found.label,
