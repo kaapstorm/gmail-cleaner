@@ -1,5 +1,7 @@
 import time
 from collections.abc import Iterable, Iterator
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Any, Callable, NamedTuple, TypeVar
 
 from googleapiclient.errors import HttpError
@@ -38,6 +40,37 @@ def _is_retryable(exc: BaseException) -> bool:
     return False
 
 
+def _retry_after_seconds(exc: BaseException) -> float | None:
+    """Return the Retry-After delay advertised by the server, if any.
+
+    Accepts integer seconds (``Retry-After: 30``) or an HTTP-date
+    (``Retry-After: Wed, 21 Oct 2026 07:28:00 GMT``). Returns None
+    when the header is absent, malformed, or the exception isn't an
+    HttpError.
+    """
+    if not isinstance(exc, HttpError):
+        return None
+    headers = getattr(exc.resp, 'headers', None)
+    if not headers:
+        return None
+    raw = headers.get('retry-after') or headers.get('Retry-After')
+    if not raw:
+        return None
+    try:
+        return max(0.0, float(raw))
+    except ValueError:
+        pass
+    try:
+        target = parsedate_to_datetime(raw)
+    except TypeError, ValueError:
+        return None
+    if target is None:
+        return None
+    if target.tzinfo is None:
+        target = target.replace(tzinfo=timezone.utc)
+    return max(0.0, (target - datetime.now(timezone.utc)).total_seconds())
+
+
 def _with_retry(fn: Callable[..., T], *args: Any, **kwargs: Any) -> T:
     for attempt in range(len(_RETRY_DELAYS) + 1):
         try:
@@ -45,7 +78,13 @@ def _with_retry(fn: Callable[..., T], *args: Any, **kwargs: Any) -> T:
         except (OSError, TimeoutError, HttpError) as exc:
             if not _is_retryable(exc) or attempt == len(_RETRY_DELAYS):
                 raise
-            time.sleep(_RETRY_DELAYS[attempt])
+            server_delay = _retry_after_seconds(exc)
+            delay = (
+                server_delay
+                if server_delay is not None
+                else _RETRY_DELAYS[attempt]
+            )
+            time.sleep(delay)
     raise AssertionError('unreachable')  # pragma: no cover
 
 

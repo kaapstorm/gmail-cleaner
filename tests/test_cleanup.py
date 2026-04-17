@@ -70,6 +70,68 @@ def test_with_retry_raises_after_all_attempts_fail():
     assert func.call_count == 3
 
 
+def _http_error_with_retry_after(value: str) -> HttpError:
+    resp = MagicMock(status=429)
+    resp.headers = {'retry-after': value}
+    return HttpError(resp, b'')
+
+
+def test_retry_after_seconds_parses_integer():
+    exc = _http_error_with_retry_after('30')
+    assert cleanup._retry_after_seconds(exc) == 30.0
+
+
+def test_retry_after_seconds_parses_http_date():
+    from datetime import datetime, timedelta, timezone
+
+    target = datetime.now(timezone.utc) + timedelta(seconds=45)
+    header = target.strftime('%a, %d %b %Y %H:%M:%S GMT')
+    result = cleanup._retry_after_seconds(_http_error_with_retry_after(header))
+    assert result is not None
+    assert 30.0 < result < 60.0
+
+
+def test_retry_after_seconds_returns_none_when_missing():
+    resp = MagicMock(status=429)
+    resp.headers = {}
+    assert cleanup._retry_after_seconds(HttpError(resp, b'')) is None
+
+
+def test_retry_after_seconds_returns_none_for_non_http_error():
+    assert cleanup._retry_after_seconds(OSError('boom')) is None
+
+
+def test_retry_after_seconds_returns_none_for_garbage():
+    assert (
+        cleanup._retry_after_seconds(_http_error_with_retry_after('??'))
+        is None
+    )
+
+
+def test_with_retry_honors_retry_after_header(monkeypatch):
+    sleeps: list[float] = []
+    monkeypatch.setattr(
+        'gmail_cleaner.cleanup.time.sleep',
+        lambda seconds: sleeps.append(seconds),
+    )
+    err = _http_error_with_retry_after('7')
+    func = MagicMock(side_effect=[err, 'ok'])
+    assert cleanup._with_retry(func) == 'ok'
+    assert sleeps == [7.0]
+
+
+def test_with_retry_falls_back_to_default_delay(monkeypatch):
+    sleeps: list[float] = []
+    monkeypatch.setattr(
+        'gmail_cleaner.cleanup.time.sleep',
+        lambda seconds: sleeps.append(seconds),
+    )
+    err = HttpError(MagicMock(status=500, headers={}), b'')
+    func = MagicMock(side_effect=[err, 'ok'])
+    assert cleanup._with_retry(func) == 'ok'
+    assert sleeps == [cleanup._RETRY_DELAYS[0]]
+
+
 def test_iter_message_ids_single_page():
     mock_service = MagicMock()
     mock_service.users().messages().list().execute.return_value = {
