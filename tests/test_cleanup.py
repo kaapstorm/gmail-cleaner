@@ -25,49 +25,49 @@ def test_with_retry_returns_value_on_first_success():
 
 @use(no_sleep)
 def test_with_retry_retries_on_5xx():
-    fn = MagicMock(
+    func = MagicMock(
         side_effect=[
             HttpError(MagicMock(status=503), b''),
             'ok',
         ],
     )
-    assert cleanup._with_retry(fn) == 'ok'
-    assert fn.call_count == 2
+    assert cleanup._with_retry(func) == 'ok'
+    assert func.call_count == 2
 
 
 @use(no_sleep)
 def test_with_retry_retries_on_429():
-    fn = MagicMock(
+    func = MagicMock(
         side_effect=[
             HttpError(MagicMock(status=429), b''),
             'ok',
         ],
     )
-    assert cleanup._with_retry(fn) == 'ok'
+    assert cleanup._with_retry(func) == 'ok'
 
 
 def test_with_retry_does_not_retry_on_403():
     err = HttpError(MagicMock(status=403), b'')
-    fn = MagicMock(side_effect=err)
+    func = MagicMock(side_effect=err)
     with pytest.raises(HttpError):
-        cleanup._with_retry(fn)
-    assert fn.call_count == 1
+        cleanup._with_retry(func)
+    assert func.call_count == 1
 
 
 def test_with_retry_does_not_retry_on_value_error():
-    fn = MagicMock(side_effect=ValueError('bug'))
+    func = MagicMock(side_effect=ValueError('bug'))
     with pytest.raises(ValueError):
-        cleanup._with_retry(fn)
-    assert fn.call_count == 1
+        cleanup._with_retry(func)
+    assert func.call_count == 1
 
 
 @use(no_sleep)
 def test_with_retry_raises_after_all_attempts_fail():
     err = HttpError(MagicMock(status=500), b'')
-    fn = MagicMock(side_effect=err)
+    func = MagicMock(side_effect=err)
     with pytest.raises(HttpError):
-        cleanup._with_retry(fn)
-    assert fn.call_count == 3
+        cleanup._with_retry(func)
+    assert func.call_count == 3
 
 
 def test_iter_message_ids_single_page():
@@ -127,13 +127,13 @@ def test_iter_message_ids_is_lazy():
         None,
     ]
 
-    it = cleanup._iter_message_ids(mock_service, query='in:inbox')
+    iterator = cleanup._iter_message_ids(mock_service, query='in:inbox')
     # Drain only first page.
-    assert next(it) == 'm1'
+    assert next(iterator) == 'm1'
     # Second page must not have been fetched yet.
     assert second_request.execute.call_count == 0
     # Now drain the rest.
-    assert list(it) == ['m2']
+    assert list(iterator) == ['m2']
     assert second_request.execute.call_count == 1
 
 

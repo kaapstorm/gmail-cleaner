@@ -18,12 +18,12 @@ def _format_count(num_returned: int, estimate: int) -> str:
 
 def _format_date(raw: str) -> str:
     try:
-        dt = parsedate_to_datetime(raw)
-    except (TypeError, ValueError):
+        parsed = parsedate_to_datetime(raw)
+    except TypeError, ValueError:
         return raw
-    if dt is None:
+    if parsed is None:
         return raw
-    return dt.strftime('%Y-%m-%d')
+    return parsed.strftime('%Y-%m-%d')
 
 
 def list_query(

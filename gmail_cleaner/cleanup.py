@@ -79,8 +79,8 @@ def _iter_message_ids(
     )
     while request is not None:
         response = request.execute()
-        for m in response.get('messages', []):
-            yield m['id']
+        for message in response.get('messages', []):
+            yield message['id']
         request = (
             service.users()
             .messages()
@@ -105,8 +105,8 @@ def _delete_message_batches(
 ) -> int:
     deleted = 0
     batch: list[str] = []
-    for mid in message_ids:
-        batch.append(mid)
+    for message_id in message_ids:
+        batch.append(message_id)
         if len(batch) >= _DELETE_BATCH_SIZE:
             _with_retry(_batch_delete, service, batch)
             deleted += len(batch)
@@ -200,8 +200,8 @@ def delete_label_completely(
         for f in filters
         if label_id in f.get('action', {}).get('addLabelIds', [])
     ]
-    for f in matching:
-        _delete_filter(service, f['id'])
+    for filter_record in matching:
+        _delete_filter(service, filter_record['id'])
     _delete_label_by_id(service, label_id)
     return LabelDeletion(messages_deleted, len(matching))
 
