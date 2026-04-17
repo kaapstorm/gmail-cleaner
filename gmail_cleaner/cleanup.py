@@ -53,11 +53,29 @@ def _with_retry(fn: Callable[..., T], *args: Any, **kwargs: Any) -> T:
     raise last_exc
 
 
-def _iter_message_ids(service, query: str) -> Iterator[str]:
+def _list_messages_kwargs(
+    *,
+    query: str | None,
+    label_ids: list[str] | None,
+) -> dict:
+    kwargs: dict = {'userId': 'me', 'maxResults': _LIST_PAGE_SIZE}
+    if query is not None:
+        kwargs['q'] = query
+    if label_ids is not None:
+        kwargs['labelIds'] = label_ids
+    return kwargs
+
+
+def _iter_message_ids(
+    service,
+    *,
+    query: str | None = None,
+    label_ids: list[str] | None = None,
+) -> Iterator[str]:
     request = (
         service.users()
         .messages()
-        .list(userId='me', q=query, maxResults=_LIST_PAGE_SIZE)
+        .list(**_list_messages_kwargs(query=query, label_ids=label_ids))
     )
     while request is not None:
         response = request.execute()
@@ -130,11 +148,16 @@ def _delete_label_by_id(service, label_id: str) -> None:
     )
 
 
-def _peek_query(service, query: str) -> ScanResult:
+def _peek_query(
+    service,
+    *,
+    query: str | None = None,
+    label_ids: list[str] | None = None,
+) -> ScanResult:
     response = (
         service.users()
         .messages()
-        .list(userId='me', q=query, maxResults=_LIST_PAGE_SIZE)
+        .list(**_list_messages_kwargs(query=query, label_ids=label_ids))
         .execute()
     )
     estimate = response.get('resultSizeEstimate', 0)
@@ -143,7 +166,7 @@ def _peek_query(service, query: str) -> ScanResult:
 
 
 def scan_for_messages(creds, query: str) -> ScanResult:
-    return _peek_query(build_service(creds), query)
+    return _peek_query(build_service(creds), query=query)
 
 
 def find_label(
@@ -153,7 +176,7 @@ def find_label(
     service = build_service(creds)
     for label in _list_user_labels(service):
         if label['name'] == label_name:
-            peek = _peek_query(service, f'label:{label["id"]}')
+            peek = _peek_query(service, label_ids=[label['id']])
             return LabelLookup(label, peek.estimate, peek.has_results)
     return None
 
@@ -168,7 +191,7 @@ def delete_label_completely(
     label_id = label['id']
     messages_deleted = _delete_message_batches(
         service,
-        _iter_message_ids(service, f'label:{label_id}'),
+        _iter_message_ids(service, label_ids=[label_id]),
         on_progress=on_progress,
     )
     filters = _list_filters(service)
@@ -192,6 +215,6 @@ def delete_messages_matching(
     service = build_service(creds)
     return _delete_message_batches(
         service,
-        _iter_message_ids(service, query),
+        _iter_message_ids(service, query=query),
         on_progress=on_progress,
     )

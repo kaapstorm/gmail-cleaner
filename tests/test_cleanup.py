@@ -76,7 +76,7 @@ def test_iter_message_ids_single_page():
         'messages': [{'id': 'm1'}, {'id': 'm2'}],
     }
     mock_service.users().messages().list_next.return_value = None
-    assert list(cleanup._iter_message_ids(mock_service, 'in:inbox')) == [
+    assert list(cleanup._iter_message_ids(mock_service, query='in:inbox')) == [
         'm1',
         'm2',
     ]
@@ -98,7 +98,7 @@ def test_iter_message_ids_paginates():
         None,
     ]
 
-    assert list(cleanup._iter_message_ids(mock_service, 'in:inbox')) == [
+    assert list(cleanup._iter_message_ids(mock_service, query='in:inbox')) == [
         'm1',
         'm2',
     ]
@@ -108,7 +108,9 @@ def test_iter_message_ids_empty():
     mock_service = MagicMock()
     mock_service.users().messages().list().execute.return_value = {}
     mock_service.users().messages().list_next.return_value = None
-    assert list(cleanup._iter_message_ids(mock_service, 'in:inbox')) == []
+    assert (
+        list(cleanup._iter_message_ids(mock_service, query='in:inbox')) == []
+    )
 
 
 def test_iter_message_ids_is_lazy():
@@ -125,7 +127,7 @@ def test_iter_message_ids_is_lazy():
         None,
     ]
 
-    it = cleanup._iter_message_ids(mock_service, 'in:inbox')
+    it = cleanup._iter_message_ids(mock_service, query='in:inbox')
     # Drain only first page.
     assert next(it) == 'm1'
     # Second page must not have been fetched yet.
@@ -375,6 +377,27 @@ def test_delete_label_by_id_retries_on_5xx():
     assert mock_service.users().labels().delete().execute.call_count == 2
 
 
+@pytest.mark.parametrize(
+    'kwargs, expected',
+    [
+        (
+            {'query': 'in:inbox', 'label_ids': None},
+            {'userId': 'me', 'maxResults': 500, 'q': 'in:inbox'},
+        ),
+        (
+            {'query': None, 'label_ids': ['L1']},
+            {'userId': 'me', 'maxResults': 500, 'labelIds': ['L1']},
+        ),
+        (
+            {'query': None, 'label_ids': None},
+            {'userId': 'me', 'maxResults': 500},
+        ),
+    ],
+)
+def test_list_messages_kwargs_omits_none_values(kwargs, expected):
+    assert cleanup._list_messages_kwargs(**kwargs) == expected
+
+
 def test_find_label_returns_none_when_not_found():
     creds = MagicMock()
     mock_service = MagicMock()
@@ -417,6 +440,11 @@ def test_find_label_returns_label_estimate_and_has_messages():
     assert found_label == label
     assert estimate == 7
     assert has_messages is True
+    mock_service.users().messages().list.assert_called_with(
+        userId='me',
+        maxResults=500,
+        labelIds=['L1'],
+    )
 
 
 def test_delete_label_completely_deletes_messages_filters_and_label():
