@@ -328,3 +328,22 @@ def test_with_retry_falls_back_to_default_delay(monkeypatch):
     func = MagicMock(side_effect=[err, 'ok'])
     assert gmail._with_retry(func) == 'ok'
     assert sleeps == [gmail._RETRY_DELAYS[0]]
+
+
+@pytest.mark.parametrize(
+    'raw, expected',
+    [
+        (None, None),
+        ('', None),
+        (
+            'Mon, 13 Apr 2026 14:30:00 -0400',
+            '2026-04-13T14:30:00-04:00',
+        ),
+        # Unparseable garbage: falls back to raw string.
+        ('not a real date', 'not a real date'),
+        # Parseable but invalid month: falls back to raw string.
+        ('Mon, 99 Abc 2026 14:30:00 -0400', 'Mon, 99 Abc 2026 14:30:00 -0400'),
+    ],
+)
+def test_parse_iso_date(raw, expected):
+    assert gmail._parse_iso_date(raw) == expected

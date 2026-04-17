@@ -59,6 +59,18 @@ def _retry_after_seconds(exc: BaseException) -> float | None:
     return max(0.0, (target - datetime.now(timezone.utc)).total_seconds())
 
 
+def _parse_iso_date(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    try:
+        parsed = parsedate_to_datetime(raw)
+    except (TypeError, ValueError):
+        return raw
+    if parsed is None:
+        return raw
+    return parsed.isoformat()
+
+
 def _with_retry(fn: Callable[..., T], *args: Any, **kwargs: Any) -> T:
     for attempt in range(len(_RETRY_DELAYS) + 1):
         try:
