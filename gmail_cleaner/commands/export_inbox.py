@@ -31,7 +31,7 @@ def _open_output(path: str) -> Iterator[IO[str]]:
         yield handle
 
 
-def _report(written: int) -> None:
+def _report(written):
     print(f'Exported {written:,} messages...', file=sys.stderr)
 
 

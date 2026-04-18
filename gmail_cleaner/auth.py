@@ -39,7 +39,7 @@ def save_token(creds: Credentials) -> None:
     token_path.chmod(0o600)
 
 
-def delete_token() -> None:
+def delete_token():
     get_token_path().unlink(missing_ok=True)
 
 

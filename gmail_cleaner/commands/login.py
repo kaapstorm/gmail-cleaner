@@ -3,7 +3,7 @@ import typer
 from gmail_cleaner import auth, gmail
 
 
-def login() -> None:
+def login():
     creds = auth.load_token()
     if creds is not None:
         typer.echo(f'Already logged in as {gmail.get_user_email(creds)}')

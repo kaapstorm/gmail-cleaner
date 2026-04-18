@@ -7,7 +7,7 @@ from gmail_cleaner import auth, gmail
 _AGE_RE = re.compile(r'^\d+[dmy]$')
 
 
-def _validate_age(value: str) -> str:
+def _validate_age(value):
     if not _AGE_RE.match(value):
         raise typer.BadParameter('must look like 30d, 6m, or 2y')
     return value

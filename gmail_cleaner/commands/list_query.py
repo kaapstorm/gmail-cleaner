@@ -8,7 +8,7 @@ COUNT_CAP = 100
 PREVIEW_LIMIT = 10
 
 
-def _format_count(num_returned: int, estimate: int) -> str:
+def _format_count(num_returned, estimate):
     if num_returned < COUNT_CAP:
         return f'{num_returned} matches'
     if estimate < COUNT_CAP:
@@ -16,7 +16,7 @@ def _format_count(num_returned: int, estimate: int) -> str:
     return f'About {estimate} matches'
 
 
-def _format_date(raw: str) -> str:
+def _format_date(raw):
     try:
         parsed = parsedate_to_datetime(raw)
     except (TypeError, ValueError):

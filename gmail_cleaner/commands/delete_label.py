@@ -6,7 +6,7 @@ from gmail_cleaner import auth, cleanup
 from gmail_cleaner.commands._progress import echo_sample, report_progress
 
 
-def _render_filter_criteria(criteria: dict) -> str:
+def _render_filter_criteria(criteria):
     if not criteria:
         return '(no criteria)'
     parts: list[str] = []

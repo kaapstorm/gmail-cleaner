@@ -7,7 +7,7 @@ from google.oauth2.credentials import Credentials
 from gmail_cleaner import gmail
 
 
-def report_progress(total_estimate: int, deleted: int) -> None:
+def report_progress(total_estimate, deleted):
     """Write a running delete count to stderr.
 
     Called repeatedly during long-running deletes. Output goes to
@@ -20,7 +20,7 @@ def report_progress(total_estimate: int, deleted: int) -> None:
     )
 
 
-def format_date(raw: str) -> str:
+def format_date(raw):
     try:
         parsed = parsedate_to_datetime(raw)
     except (TypeError, ValueError):

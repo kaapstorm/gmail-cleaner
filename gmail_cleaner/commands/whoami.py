@@ -3,7 +3,7 @@ import typer
 from gmail_cleaner import auth, gmail
 
 
-def whoami() -> None:
+def whoami():
     creds = auth.load_token()
     if creds is None:
         typer.echo('Not logged in')

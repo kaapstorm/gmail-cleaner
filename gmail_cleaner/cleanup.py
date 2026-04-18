@@ -104,7 +104,7 @@ def _list_messages_kwargs(
     query: str | None,
     label_ids: list[str] | None,
 ) -> dict:
-    kwargs: dict = {'userId': 'me', 'maxResults': _LIST_PAGE_SIZE}
+    kwargs = {'userId': 'me', 'maxResults': _LIST_PAGE_SIZE}
     if query is not None:
         kwargs['q'] = query
     if label_ids is not None:

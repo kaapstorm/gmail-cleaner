@@ -99,7 +99,7 @@ def fetch_message_export(service: Service, message_id: str) -> dict:
     )
     payload = response.get('payload', {}) or {}
     headers = _extract_headers(payload, _EXPORT_HEADERS)
-    record: dict = {
+    record = {
         'id': response.get('id', message_id),
         'thread_id': response.get('threadId'),
         'date': _parse_iso_date(headers.get('Date')),
