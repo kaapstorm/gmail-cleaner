@@ -85,9 +85,9 @@ def test_iter_message_ids_is_lazy():
     assert second_request.execute.call_count == 1
 
 
-def test_delete_message_batches_groups_by_500():
+def test_delete_message_batches_groups_by_1000():
     mock_service = MagicMock()
-    ids = [f'm{i}' for i in range(750)]
+    ids = [f'm{i}' for i in range(1500)]
     progress: list[int] = []
     total = cleanup._delete_message_batches(
         mock_service,
@@ -96,10 +96,10 @@ def test_delete_message_batches_groups_by_500():
     )
     batch_delete = mock_service.users().messages().batchDelete
     assert batch_delete.call_count == 2
-    assert len(batch_delete.call_args_list[0].kwargs['body']['ids']) == 500
-    assert len(batch_delete.call_args_list[1].kwargs['body']['ids']) == 250
-    assert progress == [500, 750]
-    assert total == 750
+    assert len(batch_delete.call_args_list[0].kwargs['body']['ids']) == 1000
+    assert len(batch_delete.call_args_list[1].kwargs['body']['ids']) == 500
+    assert progress == [1000, 1500]
+    assert total == 1500
 
 
 def test_delete_message_batches_empty_is_noop():

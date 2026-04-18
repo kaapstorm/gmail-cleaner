@@ -11,7 +11,7 @@ from gmail_cleaner.gmail import (
 )
 
 _LIST_PAGE_SIZE = 500
-_DELETE_BATCH_SIZE = 500
+_DELETE_BATCH_SIZE = 1000
 
 
 class ScanResult(NamedTuple):
