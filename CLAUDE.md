@@ -8,6 +8,14 @@ Tests use pytest and
 Use pytest's parametrized tests to deduplicate tests that have the same
 structure.
 
+## Type hints                                                                 
+                                                                                
+Type hints here are documentation. Include them when the type itself
+conveys something the name doesn't — e.g. a custom type alias, a
+`Union`, or a non-obvious structure. Omit them when the type is clear
+from context (e.g. `count: int`, `name: str`). Prioritize a better name
+over a type hint.
+
 ## Keep it clean
 
 Before editing a Python module, format it with `ruff` and sort imports.
