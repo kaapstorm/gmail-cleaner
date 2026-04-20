@@ -47,8 +47,12 @@ Commands
 
 * **export-inbox**: Export all emails in Inbox.
 
-* **normalize-filters**: Split filter actions into multiple filters and
-  remove duplicates.
+* **list-filters**: List Gmail filters as JSONL.
+
+* **create-filter**: Create one or more Gmail filters from a JSONL file
+  or stdin.
+
+* **delete-filter**: Delete one or more Gmail filters by ID.
 
 
 ### old-labels
@@ -120,3 +124,47 @@ gmc export-inbox -- -- | jq '.subject'
 The export contains metadata only (headers, labels, Gmail snippet,
 attachment filenames/sizes). It does not include message bodies or
 attachment bytes.
+
+
+### list-filters
+
+Prints all filters as JSONL (one JSON object per line). The output is
+safe to pipe into a file, edit, and feed back into `create-filter`.
+
+Example:
+
+```shell
+gmc list-filters > filters.jsonl
+gmc list-filters --id ABCDEF
+```
+
+Options:
+
+* **--id**: Return only the filter with this ID.
+
+
+### create-filter
+
+Reads JSONL of filter objects (one per line) and creates each in Gmail.
+Prints the created filters, with their new IDs, as JSONL.
+
+Input objects must not include an `id` field — Gmail assigns IDs.
+
+Examples:
+
+```shell
+gmc create-filter filters.jsonl
+cat filters.jsonl | gmc create-filter -
+```
+
+
+### delete-filter
+
+Deletes one or more filters by ID. Reports `deleted <id>` or
+`not found <id>` per filter on stderr.
+
+Example:
+
+```shell
+gmc delete-filter ABCDEF GHIJKL
+```
