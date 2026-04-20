@@ -1,0 +1,27 @@
+from google.oauth2.credentials import Credentials
+from googleapiclient.errors import HttpError
+
+from gmail_cleaner.gmail import (
+    _get_filter,
+    _list_filters,
+    build_service,
+)
+
+
+class FilterNotFound(Exception):
+    """Raised when a filter ID is not found in Gmail."""
+
+
+def list_filters(
+    creds: Credentials,
+    filter_id: str | None = None,
+) -> list[dict]:
+    service = build_service(creds)
+    if filter_id is None:
+        return _list_filters(service)
+    try:
+        return [_get_filter(service, filter_id)]
+    except HttpError as exc:
+        if getattr(exc.resp, 'status', None) == 404:
+            raise FilterNotFound(filter_id) from exc
+        raise
