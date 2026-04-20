@@ -1,6 +1,7 @@
 import typer
 
 from gmail_cleaner.commands.create_filter import create_filter
+from gmail_cleaner.commands.delete_filter import delete_filter
 from gmail_cleaner.commands.delete_label import delete_label
 from gmail_cleaner.commands.delete_query import delete_query
 from gmail_cleaner.commands.export_inbox import export_inbox
@@ -37,3 +38,4 @@ app.command(help='List Gmail filters as JSONL.')(list_filters)
 app.command(help='Create Gmail filters from a JSONL file (or stdin via "-").')(
     create_filter,
 )
+app.command(help='Delete Gmail filters by ID.')(delete_filter)
