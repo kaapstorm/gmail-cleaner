@@ -47,13 +47,15 @@ Also in scope as a follow-up cleanup: normalize `export-inbox` to use
 gmc list-filters [--id ID]
 ```
 
-Prints a JSON array of Gmail filter resources to stdout, pretty-printed
-with 2-space indent. Each element is a full filter (`id`, `criteria`,
-`action`) as returned by the Gmail API.
+Prints Gmail filter resources to stdout as JSONL: one filter per line,
+each line a compact JSON object with the full filter (`id`, `criteria`,
+`action`) as returned by the Gmail API. Matches the format used by
+`export-inbox`.
 
-- With no `--id`, lists all filters. An empty result is `[]`.
-- With `--id ID`, returns an array containing that one filter. If the ID
-  does not exist, exits non-zero with an error on stderr.
+- With no `--id`, lists all filters. An empty result is empty output
+  (zero lines).
+- With `--id ID`, emits a single line for that filter. If the ID does
+  not exist, exits non-zero with an error on stderr.
 
 ### `create-filter`
 
@@ -61,17 +63,17 @@ with 2-space indent. Each element is a full filter (`id`, `criteria`,
 gmc create-filter <path>
 ```
 
-Reads JSON from `<path>`, or from stdin if `<path>` is `-`. Input may be
-a single filter object or an array of filter objects; a single object is
-normalized to a one-element list internally. Input MUST NOT include an
-`id` field — Gmail assigns IDs on creation.
+Reads JSONL from `<path>`, or from stdin if `<path>` is `-`: one filter
+object per line. Blank lines are ignored. Input filters MUST NOT
+include an `id` field — Gmail assigns IDs on creation.
 
-Creates each filter sequentially via the Gmail API. Prints a JSON array
-of the created filters (each with its new `id`) to stdout.
+Creates each filter sequentially via the Gmail API. Prints the created
+filters (each with its new `id`) to stdout as JSONL, one per line,
+matching the `list-filters` format for clean round-tripping.
 
-If the API rejects an element mid-batch, the command prints the filters
-created so far to stdout, prints the error to stderr, and exits
-non-zero. No rollback is attempted: Gmail filter creation is not
+If the API rejects an element mid-batch, the command prints the
+already-created filters (one JSONL line each) to stdout, prints the
+error to stderr, and exits non-zero. No rollback is attempted: Gmail filter creation is not
 transactional, and partial state is recoverable by the caller via
 `list-filters` + `delete-filter`.
 
@@ -92,9 +94,10 @@ non-zero only on unexpected errors.
 
 ## File format
 
-All filter I/O uses JSON. No YAML, keeping parity with `export-inbox`'s
-JSONL format and avoiding a new dependency. Claude is the primary editor
-of these files; JSON round-trips cleanly.
+All filter I/O uses JSONL — one filter object per line — matching
+`export-inbox`. No YAML; no new dependency. Claude is the primary
+editor of these files and JSONL round-trips cleanly between
+`list-filters` and `create-filter`.
 
 ## Module structure
 
@@ -154,15 +157,15 @@ Follow the existing pattern in `tests/`:
 - **`tests/test_filters.py`** — unit tests for
   `filters.list_filters/create_filters/delete_filters`. Mock the Gmail
   service using the existing fixture approach (check `tests/fixtures.py`
-  and reuse). Parametrize create-filter tests over single-object and
-  array input to dedupe shape-equivalent cases.
+  and reuse). Parametrize create-filter tests over single-line and
+  multi-line JSONL input to dedupe shape-equivalent cases.
 - **`tests/commands/test_list_filters.py`**,
   **`test_create_filter.py`**, **`test_delete_filter.py`** — CLI tests:
-  invoke the Typer app, assert stdout JSON, stderr content, and exit
-  codes. Cover:
+  invoke the Typer app, assert stdout content (parsed line-by-line as
+  JSONL), stderr content, and exit codes. Cover:
   - `list-filters` empty, populated, and `--id` hit/miss.
-  - `create-filter` single object, array, stdin (`-`), and mid-batch
-    failure.
+  - `create-filter` single-line, multi-line, stdin (`-`), blank-line
+    tolerance, and mid-batch failure.
   - `delete-filter` single, multiple, all-missing, mixed success/miss.
 - **`tests/test_cleanup.py`** — existing tests should still pass after
   the `_list_filters`/`_delete_filter` promotion; adjust imports only.
