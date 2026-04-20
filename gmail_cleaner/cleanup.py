@@ -5,6 +5,8 @@ from google.oauth2.credentials import Credentials
 
 from gmail_cleaner.gmail import (
     Service,
+    _delete_filter,
+    _list_filters,
     _list_user_labels,
     _with_retry,
     build_service,
@@ -163,23 +165,6 @@ def _delete_message_batches(
         deleted += len(batch)
         on_progress(deleted)
     return deleted
-
-
-def _list_filters(service: Service) -> list[dict]:
-    response = _with_retry(
-        service.users().settings().filters().list(userId='me').execute,
-    )
-    return response.get('filter', [])
-
-
-def _delete_filter(service: Service, filter_id: str) -> None:
-    _with_retry(
-        service.users()
-        .settings()
-        .filters()
-        .delete(userId='me', id=filter_id)
-        .execute,
-    )
 
 
 def _delete_label_by_id(service: Service, label_id: str) -> None:

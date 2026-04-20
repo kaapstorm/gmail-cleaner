@@ -207,3 +207,20 @@ def iter_message_headers(
     service = build_service(creds)
     for message_id in message_ids:
         yield _fetch_message_headers(service, message_id)
+
+
+def _list_filters(service: Service) -> list[dict]:
+    response = _with_retry(
+        service.users().settings().filters().list(userId='me').execute,
+    )
+    return response.get('filter', [])
+
+
+def _delete_filter(service: Service, filter_id: str) -> None:
+    _with_retry(
+        service.users()
+        .settings()
+        .filters()
+        .delete(userId='me', id=filter_id)
+        .execute,
+    )
