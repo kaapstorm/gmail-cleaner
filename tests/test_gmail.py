@@ -370,3 +370,28 @@ def test_delete_filter_retries_on_5xx():
         mock_service.users().settings().filters().delete().execute.call_count
         == 2
     )
+
+
+def test_create_filter_calls_api_and_returns_created():
+    mock_service = MagicMock()
+    created = {'id': 'f9', 'criteria': {'from': 'x@y'}, 'action': {}}
+    mock_service.users().settings().filters().create().execute.return_value = (
+        created
+    )
+    body = {'criteria': {'from': 'x@y'}, 'action': {}}
+    assert gmail._create_filter(mock_service, body) == created
+    mock_service.users().settings().filters().create.assert_called_with(
+        userId='me',
+        body=body,
+    )
+
+
+def test_get_filter_calls_api_and_returns_filter():
+    mock_service = MagicMock()
+    filt = {'id': 'f9', 'criteria': {}, 'action': {}}
+    mock_service.users().settings().filters().get().execute.return_value = filt
+    assert gmail._get_filter(mock_service, 'f9') == filt
+    mock_service.users().settings().filters().get.assert_called_with(
+        userId='me',
+        id='f9',
+    )

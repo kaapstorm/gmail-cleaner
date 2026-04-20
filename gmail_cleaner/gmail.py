@@ -224,3 +224,23 @@ def _delete_filter(service: Service, filter_id: str) -> None:
         .delete(userId='me', id=filter_id)
         .execute,
     )
+
+
+def _create_filter(service: Service, filter_dict: dict) -> dict:
+    return _with_retry(
+        service.users()
+        .settings()
+        .filters()
+        .create(userId='me', body=filter_dict)
+        .execute,
+    )
+
+
+def _get_filter(service: Service, filter_id: str) -> dict:
+    return _with_retry(
+        service.users()
+        .settings()
+        .filters()
+        .get(userId='me', id=filter_id)
+        .execute,
+    )
