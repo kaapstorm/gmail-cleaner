@@ -59,7 +59,7 @@ def test_export_inbox_writes_jsonl_to_file():
     assert [json.loads(line)['id'] for line in lines] == ids
 
 
-def test_export_inbox_writes_to_stdout_when_output_is_dashdash():
+def test_export_inbox_writes_to_stdout_when_output_is_dash():
     mock_creds = MagicMock()
     ids = ['a', 'b']
     with (
@@ -69,7 +69,7 @@ def test_export_inbox_writes_to_stdout_when_output_is_dashdash():
             side_effect=_iter_records(ids),
         ),
     ):
-        result = runner.invoke(app, ['export-inbox', '--', '--'])
+        result = runner.invoke(app, ['export-inbox', '-'])
     assert result.exit_code == 0, result.output
     lines = [line for line in result.stdout.splitlines() if line]
     assert [json.loads(line)['id'] for line in lines] == ids

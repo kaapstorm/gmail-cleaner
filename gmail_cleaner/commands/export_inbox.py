@@ -9,17 +9,8 @@ from googleapiclient.errors import HttpError
 
 from gmail_cleaner import auth, export
 
-STDOUT_MARKER = '--'
+STDOUT_MARKER = '-'
 PROGRESS_EVERY = 50
-
-# Note on the '--' marker: Click (which Typer wraps) treats a bare
-# '--' token on the command line as the end-of-options marker, so the
-# shell invocation for stdout output is:
-#
-#     gmc export-inbox -- --
-#
-# The first '--' ends option parsing; the second is the OUTPUT value
-# passed to this command. The README and tests reflect this.
 
 
 @contextmanager
@@ -38,7 +29,7 @@ def _report(written):
 def export_inbox(
     output: str = typer.Argument(
         ...,
-        help='Path to write JSONL output. Use "--" to write to stdout.',
+        help='Path to write JSONL output. Use "-" to write to stdout.',
     ),
 ) -> None:
     creds = auth.load_token()

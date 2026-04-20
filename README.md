@@ -113,12 +113,10 @@ Example
 gmc export-inbox inbox.jsonl
 ```
 
-Use `--` as the output path to write to stdout (the first `--` is
-the shell's end-of-options marker, the second is the output
-argument):
+Use `-` as the output path to write to stdout:
 
 ```shell
-gmc export-inbox -- -- | jq '.subject'
+gmc export-inbox - | jq '.subject'
 ```
 
 The export contains metadata only (headers, labels, Gmail snippet,
