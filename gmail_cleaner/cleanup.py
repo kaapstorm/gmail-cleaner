@@ -1,12 +1,11 @@
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable
 from typing import Callable, NamedTuple
 
 from google.oauth2.credentials import Credentials
 
 from gmail_cleaner import gmail
-from gmail_cleaner.gmail import Service
+from gmail_cleaner.gmail import Service, _list_messages_kwargs, iter_message_ids
 
-_LIST_PAGE_SIZE = 500
 _DELETE_BATCH_SIZE = 1000
 
 
@@ -54,7 +53,7 @@ def preview_query(
     service = gmail.build_service(creds)
     sample_ids: list[str] = []
     total = 0
-    for message_id in _iter_message_ids(
+    for message_id in iter_message_ids(
         service,
         query=query,
         label_ids=label_ids,
@@ -82,7 +81,7 @@ def preview_label(
     label_id = label['id']
     sample_ids: list[str] = []
     total = 0
-    for message_id in _iter_message_ids(service, label_ids=[label_id]):
+    for message_id in iter_message_ids(service, label_ids=[label_id]):
         if len(sample_ids) < sample_size:
             sample_ids.append(message_id)
         total += 1
@@ -93,41 +92,6 @@ def preview_label(
         if label_id in f.get('action', {}).get('addLabelIds', [])
     ]
     return LabelPreview(total, sample_ids, matching)
-
-
-def _list_messages_kwargs(
-    *,
-    query: str | None,
-    label_ids: list[str] | None,
-) -> dict:
-    kwargs = {'userId': 'me', 'maxResults': _LIST_PAGE_SIZE}
-    if query is not None:
-        kwargs['q'] = query
-    if label_ids is not None:
-        kwargs['labelIds'] = label_ids
-    return kwargs
-
-
-def _iter_message_ids(
-    service: Service,
-    *,
-    query: str | None = None,
-    label_ids: list[str] | None = None,
-) -> Iterator[str]:
-    request = (
-        service.users()
-        .messages()
-        .list(**_list_messages_kwargs(query=query, label_ids=label_ids))
-    )
-    while request is not None:
-        response = gmail.with_retry(request.execute)
-        for message in response.get('messages', []):
-            yield message['id']
-        request = (
-            service.users()
-            .messages()
-            .list_next(previous_request=request, previous_response=response)
-        )
 
 
 def _batch_delete(service: Service, batch: list[str]) -> None:
@@ -222,7 +186,7 @@ def delete_label_completely(
     label_id = label['id']
     messages_deleted = _delete_message_batches(
         service,
-        _iter_message_ids(service, label_ids=[label_id]),
+        iter_message_ids(service, label_ids=[label_id]),
         on_progress=on_progress,
     )
     filters = gmail.list_filters(service)
@@ -248,6 +212,6 @@ def delete_messages_matching(
     service = gmail.build_service(creds)
     return _delete_message_batches(
         service,
-        _iter_message_ids(service, query=query),
+        iter_message_ids(service, query=query),
         on_progress=on_progress,
     )

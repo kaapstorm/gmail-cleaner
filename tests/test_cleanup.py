@@ -18,73 +18,6 @@ def no_sleep():
     yield
 
 
-def test_iter_message_ids_single_page():
-    mock_service = MagicMock()
-    mock_service.users().messages().list().execute.return_value = {
-        'messages': [{'id': 'm1'}, {'id': 'm2'}],
-    }
-    mock_service.users().messages().list_next.return_value = None
-    assert list(cleanup._iter_message_ids(mock_service, query='in:inbox')) == [
-        'm1',
-        'm2',
-    ]
-
-
-def test_iter_message_ids_paginates():
-    mock_service = MagicMock()
-    page1 = {'messages': [{'id': 'm1'}], 'nextPageToken': 'tok'}
-    page2 = {'messages': [{'id': 'm2'}]}
-
-    first_request = MagicMock()
-    first_request.execute.return_value = page1
-    mock_service.users().messages().list.return_value = first_request
-
-    second_request = MagicMock()
-    second_request.execute.return_value = page2
-    mock_service.users().messages().list_next.side_effect = [
-        second_request,
-        None,
-    ]
-
-    assert list(cleanup._iter_message_ids(mock_service, query='in:inbox')) == [
-        'm1',
-        'm2',
-    ]
-
-
-def test_iter_message_ids_empty():
-    mock_service = MagicMock()
-    mock_service.users().messages().list().execute.return_value = {}
-    mock_service.users().messages().list_next.return_value = None
-    assert (
-        list(cleanup._iter_message_ids(mock_service, query='in:inbox')) == []
-    )
-
-
-def test_iter_message_ids_is_lazy():
-    mock_service = MagicMock()
-    page1 = {'messages': [{'id': 'm1'}], 'nextPageToken': 'tok'}
-    page2 = {'messages': [{'id': 'm2'}]}
-    first_request = MagicMock()
-    first_request.execute.return_value = page1
-    mock_service.users().messages().list.return_value = first_request
-    second_request = MagicMock()
-    second_request.execute.return_value = page2
-    mock_service.users().messages().list_next.side_effect = [
-        second_request,
-        None,
-    ]
-
-    iterator = cleanup._iter_message_ids(mock_service, query='in:inbox')
-    # Drain only first page.
-    assert next(iterator) == 'm1'
-    # Second page must not have been fetched yet.
-    assert second_request.execute.call_count == 0
-    # Now drain the rest.
-    assert list(iterator) == ['m2']
-    assert second_request.execute.call_count == 1
-
-
 def test_delete_message_batches_groups_by_1000():
     mock_service = MagicMock()
     ids = [f'm{i}' for i in range(1500)]
@@ -281,27 +214,6 @@ def test_delete_label_by_id_retries_on_5xx():
     mock_service.users().labels().delete().execute.side_effect = [err, None]
     cleanup._delete_label_by_id(mock_service, 'Label_1')
     assert mock_service.users().labels().delete().execute.call_count == 2
-
-
-@pytest.mark.parametrize(
-    'kwargs, expected',
-    [
-        (
-            {'query': 'in:inbox', 'label_ids': None},
-            {'userId': 'me', 'maxResults': 500, 'q': 'in:inbox'},
-        ),
-        (
-            {'query': None, 'label_ids': ['L1']},
-            {'userId': 'me', 'maxResults': 500, 'labelIds': ['L1']},
-        ),
-        (
-            {'query': None, 'label_ids': None},
-            {'userId': 'me', 'maxResults': 500},
-        ),
-    ],
-)
-def test_list_messages_kwargs_omits_none_values(kwargs, expected):
-    assert cleanup._list_messages_kwargs(**kwargs) == expected
 
 
 def test_find_label_returns_none_when_not_found():

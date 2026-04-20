@@ -163,6 +163,44 @@ def search_messages(
     return ids, estimate
 
 
+_LIST_PAGE_SIZE = 500
+
+
+def _list_messages_kwargs(
+    *,
+    query: str | None,
+    label_ids: list[str] | None,
+) -> dict:
+    kwargs = {'userId': 'me', 'maxResults': _LIST_PAGE_SIZE}
+    if query is not None:
+        kwargs['q'] = query
+    if label_ids is not None:
+        kwargs['labelIds'] = label_ids
+    return kwargs
+
+
+def iter_message_ids(
+    service: Service,
+    *,
+    query: str | None = None,
+    label_ids: list[str] | None = None,
+) -> Iterator[str]:
+    request = (
+        service.users()
+        .messages()
+        .list(**_list_messages_kwargs(query=query, label_ids=label_ids))
+    )
+    while request is not None:
+        response = with_retry(request.execute)
+        for message in response.get('messages', []):
+            yield message['id']
+        request = (
+            service.users()
+            .messages()
+            .list_next(previous_request=request, previous_response=response)
+        )
+
+
 def extract_headers(
     payload: dict,
     wanted: Iterable[str],
