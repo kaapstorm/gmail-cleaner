@@ -1,12 +1,20 @@
+from typing import NamedTuple
+
 from google.oauth2.credentials import Credentials
 from googleapiclient.errors import HttpError
 
 from gmail_cleaner.gmail import (
     _create_filter,
+    _delete_filter,
     _get_filter,
     _list_filters,
     build_service,
 )
+
+
+class DeleteResult(NamedTuple):
+    deleted: int
+    missing: list[str]
 
 
 class CreateFiltersError(Exception):
@@ -53,3 +61,22 @@ def create_filters(
         except HttpError as exc:
             raise CreateFiltersError(created) from exc
     return created
+
+
+def delete_filters(
+    creds: Credentials,
+    filter_ids: list[str],
+) -> DeleteResult:
+    service = build_service(creds)
+    deleted = 0
+    missing: list[str] = []
+    for filter_id in filter_ids:
+        try:
+            _delete_filter(service, filter_id)
+            deleted += 1
+        except HttpError as exc:
+            if getattr(exc.resp, 'status', None) == 404:
+                missing.append(filter_id)
+                continue
+            raise
+    return DeleteResult(deleted=deleted, missing=missing)
