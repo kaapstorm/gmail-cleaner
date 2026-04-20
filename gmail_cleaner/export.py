@@ -1,6 +1,6 @@
 from collections.abc import Iterator
 from email.utils import parsedate_to_datetime
-from typing import Any, Callable
+from typing import Callable
 
 from google.oauth2.credentials import Credentials
 from googleapiclient.errors import HttpError
@@ -116,23 +116,6 @@ def fetch_message_export(service: Service, message_id: str) -> dict:
     return record
 
 
-def iter_inbox_ids(service: Service) -> Iterator[str]:
-    """Yield the ID of every message currently in INBOX."""
-    page_token: str | None = None
-    while True:
-        kwargs: dict[str, Any] = {'userId': 'me', 'q': 'in:inbox'}
-        if page_token:
-            kwargs['pageToken'] = page_token
-        response = gmail.with_retry(
-            service.users().messages().list(**kwargs).execute,
-        )
-        for message in response.get('messages', []) or []:
-            yield message['id']
-        page_token = response.get('nextPageToken')
-        if not page_token:
-            return
-
-
 def iter_inbox_records(
     creds: Credentials,
     *,
@@ -146,7 +129,7 @@ def iter_inbox_records(
     iteration continues.
     """
     service = gmail.build_service(creds)
-    for message_id in iter_inbox_ids(service):
+    for message_id in gmail.iter_message_ids(service, query='in:inbox'):
         try:
             yield fetch_message_export(service, message_id)
         except HttpError as exc:

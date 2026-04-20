@@ -214,40 +214,6 @@ def test_fetch_message_export_uses_metadata_format_and_header_allowlist():
     )
 
 
-def test_iter_inbox_ids_paginates_until_exhausted():
-    mock_service = MagicMock()
-    mock_service.users().messages().list().execute.side_effect = [
-        {'messages': [{'id': 'a'}, {'id': 'b'}], 'nextPageToken': 'p2'},
-        {'messages': [{'id': 'c'}]},
-    ]
-    assert list(export.iter_inbox_ids(mock_service)) == ['a', 'b', 'c']
-
-
-def test_iter_inbox_ids_handles_empty_inbox():
-    mock_service = MagicMock()
-    mock_service.users().messages().list().execute.return_value = {}
-    assert list(export.iter_inbox_ids(mock_service)) == []
-
-
-def test_iter_inbox_ids_passes_query_and_page_token():
-    mock_service = MagicMock()
-    list_mock = mock_service.users().messages().list
-    list_mock().execute.side_effect = [
-        {'messages': [{'id': 'a'}], 'nextPageToken': 'tok'},
-        {'messages': [{'id': 'b'}]},
-    ]
-    list(export.iter_inbox_ids(mock_service))
-    calls = list_mock.call_args_list
-    # Filter out the accessor calls (no kwargs) from our two paginated calls.
-    paginated = [call for call in calls if call.kwargs]
-    assert paginated[0].kwargs == {'userId': 'me', 'q': 'in:inbox'}
-    assert paginated[1].kwargs == {
-        'userId': 'me',
-        'q': 'in:inbox',
-        'pageToken': 'tok',
-    }
-
-
 def test_iter_inbox_records_yields_records_and_reports_errors():
     from googleapiclient.errors import HttpError
 
@@ -270,7 +236,7 @@ def test_iter_inbox_records_yields_records_and_reports_errors():
             return_value=mock_service,
         ),
         patch(
-            'gmail_cleaner.export.iter_inbox_ids',
+            'gmail_cleaner.gmail.iter_message_ids',
             return_value=iter(['a', 'b', 'c']),
         ),
         patch(
