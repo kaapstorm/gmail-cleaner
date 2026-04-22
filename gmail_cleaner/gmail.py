@@ -227,12 +227,15 @@ def delete_filter(service: Service, filter_id: str) -> None:
 
 
 def create_filter(service: Service, filter_dict: dict) -> dict:
-    return with_retry(
+    # No with_retry: POST is not idempotent, and Gmail filters have no
+    # client-supplied key to dedupe on. A 5xx that actually created the
+    # filter would, on retry, produce a silent duplicate.
+    return (
         service.users()
         .settings()
         .filters()
         .create(userId='me', body=filter_dict)
-        .execute,
+        .execute()
     )
 
 

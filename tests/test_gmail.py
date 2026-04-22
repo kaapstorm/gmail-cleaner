@@ -386,6 +386,18 @@ def test_create_filter_calls_api_and_returns_created():
     )
 
 
+def test_create_filter_does_not_retry_on_5xx():
+    mock_service = MagicMock()
+    err = HttpError(MagicMock(status=503), b'')
+    mock_service.users().settings().filters().create().execute.side_effect = err
+    with pytest.raises(HttpError):
+        gmail.create_filter(mock_service, {'criteria': {}, 'action': {}})
+    assert (
+        mock_service.users().settings().filters().create().execute.call_count
+        == 1
+    )
+
+
 def test_get_filter_calls_api_and_returns_filter():
     mock_service = MagicMock()
     filt = {'id': 'f9', 'criteria': {}, 'action': {}}
