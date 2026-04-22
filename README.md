@@ -49,6 +49,8 @@ Commands
 
 * **list-filters**: List Gmail filters as JSONL.
 
+* **get-filter**: Fetch a single Gmail filter by ID as JSON.
+
 * **create-filter**: Create one or more Gmail filters from a JSONL file
   or stdin.
 
@@ -133,12 +135,19 @@ Example:
 
 ```shell
 gmc list-filters > filters.jsonl
-gmc list-filters --id ABCDEF
 ```
 
-Options:
 
-* **--id**: Return only the filter with this ID.
+### get-filter
+
+Fetches a single filter by ID and prints it as JSON. Exits non-zero if
+the ID is not found.
+
+Example:
+
+```shell
+gmc get-filter ABCDEF
+```
 
 
 ### create-filter

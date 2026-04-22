@@ -21,7 +21,7 @@ def test_list_filters_returns_all_filters():
     mock_list.assert_called_once_with(service)
 
 
-def test_list_filters_by_id_returns_single_filter_in_list():
+def test_get_filter_returns_single_filter():
     creds = MagicMock()
     service = MagicMock()
     one = {'id': 'f1', 'criteria': {}, 'action': {}}
@@ -32,11 +32,11 @@ def test_list_filters_by_id_returns_single_filter_in_list():
             return_value=one,
         ) as mock_get,
     ):
-        assert filters.list_filters(creds, filter_id='f1') == [one]
+        assert filters.get_filter(creds, 'f1') == one
     mock_get.assert_called_once_with(service, 'f1')
 
 
-def test_list_filters_by_id_missing_raises_filter_not_found():
+def test_get_filter_missing_raises_filter_not_found():
     creds = MagicMock()
     service = MagicMock()
     err = HttpError(MagicMock(status=404), b'')
@@ -45,8 +45,20 @@ def test_list_filters_by_id_missing_raises_filter_not_found():
         patch('gmail_cleaner.filters._get_filter', side_effect=err),
         pytest.raises(filters.FilterNotFound) as exc_info,
     ):
-        filters.list_filters(creds, filter_id='missing')
+        filters.get_filter(creds, 'missing')
     assert 'missing' in str(exc_info.value)
+
+
+def test_get_filter_non_404_http_error_propagates():
+    creds = MagicMock()
+    service = MagicMock()
+    err = HttpError(MagicMock(status=500), b'')
+    with (
+        patch('gmail_cleaner.filters.build_service', return_value=service),
+        patch('gmail_cleaner.filters._get_filter', side_effect=err),
+        pytest.raises(HttpError),
+    ):
+        filters.get_filter(creds, 'f1')
 
 
 def test_create_filters_creates_each_and_returns_created_list():

@@ -34,15 +34,15 @@ class FilterNotFound(Exception):
     """Raised when a filter ID is not found in Gmail."""
 
 
-def list_filters(
-    creds: Credentials,
-    filter_id: str | None = None,
-) -> list[dict]:
+def list_filters(creds: Credentials) -> list[dict]:
     service = build_service(creds)
-    if filter_id is None:
-        return _list_filters(service)
+    return _list_filters(service)
+
+
+def get_filter(creds: Credentials, filter_id: str) -> dict:
+    service = build_service(creds)
     try:
-        return [_get_filter(service, filter_id)]
+        return _get_filter(service, filter_id)
     except HttpError as exc:
         if getattr(exc.resp, 'status', None) == 404:
             raise FilterNotFound(filter_id) from exc
