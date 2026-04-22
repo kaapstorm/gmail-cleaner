@@ -1,12 +1,14 @@
 import typer
 
 from gmail_cleaner.commands.create_filter import create_filter
+from gmail_cleaner.commands.create_label import create_label
 from gmail_cleaner.commands.delete_filter import delete_filter
 from gmail_cleaner.commands.delete_label import delete_label
 from gmail_cleaner.commands.delete_query import delete_query
 from gmail_cleaner.commands.export_inbox import export_inbox
 from gmail_cleaner.commands.get_filter import get_filter
 from gmail_cleaner.commands.list_filters import list_filters
+from gmail_cleaner.commands.list_labels import list_labels
 from gmail_cleaner.commands.list_query import list_query
 from gmail_cleaner.commands.login import login
 from gmail_cleaner.commands.logout import logout
@@ -41,3 +43,7 @@ app.command(help='Create Gmail filters from a JSONL file (or stdin via "-").')(
     create_filter,
 )
 app.command(help='Delete Gmail filters by ID.')(delete_filter)
+app.command(help='List user Gmail labels as JSONL.')(list_labels)
+app.command(help='Create Gmail labels from a JSONL file (or stdin via "-").')(
+    create_label,
+)

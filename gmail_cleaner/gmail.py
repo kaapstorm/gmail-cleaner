@@ -100,6 +100,14 @@ def list_user_labels(service: Service) -> list[dict]:
     return sorted(user_labels, key=lambda label: label['name'])
 
 
+def create_label(service: Service, label_dict: dict) -> dict:
+    # No with_retry: POST is not idempotent, and a 5xx retry that
+    # actually succeeded would leave duplicate labels.
+    return (
+        service.users().labels().create(userId='me', body=label_dict).execute()
+    )
+
+
 def label_has_recent_message(
     service: Service,
     label_id: str,

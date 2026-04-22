@@ -386,10 +386,33 @@ def test_create_filter_calls_api_and_returns_created():
     )
 
 
+def test_create_label_calls_api_and_returns_created():
+    mock_service = MagicMock()
+    created = {'id': 'L9', 'name': 'MyLabel'}
+    mock_service.users().labels().create().execute.return_value = created
+    body = {'name': 'MyLabel'}
+    assert gmail.create_label(mock_service, body) == created
+    mock_service.users().labels().create.assert_called_with(
+        userId='me',
+        body=body,
+    )
+
+
+def test_create_label_does_not_retry_on_5xx():
+    mock_service = MagicMock()
+    err = HttpError(MagicMock(status=503), b'')
+    mock_service.users().labels().create().execute.side_effect = err
+    with pytest.raises(HttpError):
+        gmail.create_label(mock_service, {'name': 'X'})
+    assert mock_service.users().labels().create().execute.call_count == 1
+
+
 def test_create_filter_does_not_retry_on_5xx():
     mock_service = MagicMock()
     err = HttpError(MagicMock(status=503), b'')
-    mock_service.users().settings().filters().create().execute.side_effect = err
+    mock_service.users().settings().filters().create().execute.side_effect = (
+        err
+    )
     with pytest.raises(HttpError):
         gmail.create_filter(mock_service, {'criteria': {}, 'action': {}})
     assert (

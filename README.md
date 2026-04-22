@@ -56,6 +56,11 @@ Commands
 
 * **delete-filter**: Delete one or more Gmail filters by ID.
 
+* **list-labels**: List user Gmail labels as JSONL.
+
+* **create-label**: Create one or more Gmail labels from a JSONL file
+  or stdin.
+
 
 ### old-labels
 
@@ -174,4 +179,32 @@ Example:
 
 ```shell
 gmc delete-filter ABCDEF GHIJKL
+```
+
+
+### list-labels
+
+Prints user labels as JSONL (one JSON object per line). System labels
+(`INBOX`, `TRASH`, `CATEGORY_*`, etc.) are omitted.
+
+Example:
+
+```shell
+gmc list-labels
+```
+
+
+### create-label
+
+Reads JSONL of label objects (one per line) and creates each in Gmail.
+Prints the created labels, with their new IDs, as JSONL. The smallest
+valid input is `{"name": "MyLabel"}`; other Gmail label fields
+(`messageListVisibility`, `labelListVisibility`, `color`) are accepted
+as-is.
+
+Examples:
+
+```shell
+gmc create-label labels.jsonl
+echo '{"name": "AWS-Alerts"}' | gmc create-label -
 ```
