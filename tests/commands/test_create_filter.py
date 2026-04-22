@@ -92,6 +92,21 @@ def test_create_filter_ignores_blank_lines():
 
 
 @use(tmp_dir)
+def test_create_filter_malformed_json_reports_line_number():
+    creds = MagicMock()
+    path = tmp_dir() / 'filters.jsonl'
+    with path.open('w', encoding='utf-8') as handle:
+        handle.write(json.dumps({'criteria': {}, 'action': {}}) + '\n')
+        handle.write('{not valid json\n')
+    with patch('gmail_cleaner.auth.load_token', return_value=creds):
+        result = runner.invoke(app, ['create-filter', str(path)])
+    assert result.exit_code != 0
+    combined = result.stdout + (result.stderr or '')
+    assert ':2' in combined
+    assert str(path) in combined
+
+
+@use(tmp_dir)
 def test_create_filter_midbatch_failure_prints_created_and_exits_nonzero():
     creds = MagicMock()
     path = tmp_dir() / 'filters.jsonl'

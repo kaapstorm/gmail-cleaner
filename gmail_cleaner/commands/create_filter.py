@@ -21,10 +21,16 @@ def _iter_input_lines(source: str):
 
 def _parse_jsonl(source: str) -> list[dict]:
     records: list[dict] = []
-    for line in _iter_input_lines(source):
+    for lineno, line in enumerate(_iter_input_lines(source), start=1):
         if not line.strip():
             continue
-        records.append(json.loads(line))
+        try:
+            records.append(json.loads(line))
+        except json.JSONDecodeError as exc:
+            location = 'stdin' if source == STDIN_MARKER else source
+            raise typer.BadParameter(
+                f'{location}:{lineno}: {exc.msg}',
+            ) from exc
     return records
 
 
