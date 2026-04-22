@@ -45,7 +45,7 @@ Commands
 * **delete-query**: Permanently delete all emails that match a given
   query.
 
-* **export-inbox**: Export all emails in Inbox.
+* **export-inbox**: Export metadata of all emails in Inbox.
 
 * **list-filters**: List Gmail filters as JSONL.
 
@@ -111,8 +111,9 @@ gmc delete-query 'in:MySpace older_than:2y'
 
 ### export-inbox
 
-Exports one JSON object per inbox message to a JSONL file, suitable
-for feeding into an LLM to suggest filter or labelling improvements.
+Exports one JSON object of metadata about each inbox message to a JSONL
+file, suitable for feeding into an LLM to suggest filter or labeling
+improvements.
 
 Example
 
@@ -126,9 +127,8 @@ Use `-` as the output path to write to stdout:
 gmc export-inbox - | jq '.subject'
 ```
 
-The export contains metadata only (headers, labels, Gmail snippet,
-attachment filenames/sizes). It does not include message bodies or
-attachment bytes.
+Metadata includes headers, labels, Gmail snippet, attachment
+filenames/sizes. It does not include message bodies or attachment bytes.
 
 
 ### list-filters
