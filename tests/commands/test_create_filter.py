@@ -22,7 +22,7 @@ def test_create_filter_not_logged_in_exits_with_error():
     with patch('gmail_cleaner.auth.load_token', return_value=None):
         result = runner.invoke(app, ['create-filter', '-'])
     assert result.exit_code == 1
-    assert 'Not logged in' in result.stdout
+    assert 'Not logged in' in (result.stdout + (result.stderr or ''))
 
 
 @use(tmp_dir)

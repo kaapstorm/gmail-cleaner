@@ -11,7 +11,7 @@ def test_old_labels_not_logged_in_exits_with_error():
     with patch('gmail_cleaner.auth.load_token', return_value=None):
         result = runner.invoke(app, ['old-labels'])
     assert result.exit_code == 1
-    assert 'Not logged in' in result.stdout
+    assert 'Not logged in' in (result.stdout + (result.stderr or ''))
 
 
 def test_old_labels_bad_age_exits_with_usage_error():

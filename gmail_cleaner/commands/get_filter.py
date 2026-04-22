@@ -11,7 +11,7 @@ def get_filter(
 ) -> None:
     creds = auth.load_token()
     if creds is None:
-        typer.echo('Not logged in')
+        typer.echo('Not logged in', err=True)
         raise typer.Exit(1)
 
     try:

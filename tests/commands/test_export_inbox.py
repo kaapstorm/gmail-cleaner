@@ -38,7 +38,7 @@ def test_export_inbox_not_logged_in_exits_with_error():
     with patch('gmail_cleaner.auth.load_token', return_value=None):
         result = runner.invoke(app, ['export-inbox', '/tmp/out.jsonl'])
     assert result.exit_code == 1
-    assert 'Not logged in' in result.stdout
+    assert 'Not logged in' in (result.stdout + (result.stderr or ''))
 
 
 @use(tmp_dir)

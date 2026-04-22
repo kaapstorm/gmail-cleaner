@@ -12,7 +12,7 @@ def test_delete_query_not_logged_in_exits_with_error():
     with patch('gmail_cleaner.auth.load_token', return_value=None):
         result = runner.invoke(app, ['delete-query', 'in:inbox'])
     assert result.exit_code == 1
-    assert 'Not logged in' in result.stdout
+    assert 'Not logged in' in (result.stdout + (result.stderr or ''))
 
 
 def test_delete_query_no_matches_exits_cleanly():

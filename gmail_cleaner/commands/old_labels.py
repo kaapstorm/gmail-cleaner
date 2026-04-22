@@ -25,7 +25,7 @@ def old_labels(
 ) -> None:
     creds = auth.load_token()
     if creds is None:
-        typer.echo('Not logged in')
+        typer.echo('Not logged in', err=True)
         raise typer.Exit(1)
 
     old, total = gmail.find_old_labels(creds, age)
