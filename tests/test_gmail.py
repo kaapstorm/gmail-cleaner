@@ -515,4 +515,4 @@ def test_iter_message_ids_is_lazy():
     ],
 )
 def test_list_messages_kwargs_omits_none_values(kwargs, expected):
-    assert gmail._list_messages_kwargs(**kwargs) == expected
+    assert gmail.list_messages_kwargs(**kwargs) == expected

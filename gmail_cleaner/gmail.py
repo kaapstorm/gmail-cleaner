@@ -166,7 +166,7 @@ def search_messages(
 _LIST_PAGE_SIZE = 500
 
 
-def _list_messages_kwargs(
+def list_messages_kwargs(
     *,
     query: str | None,
     label_ids: list[str] | None,
@@ -188,7 +188,7 @@ def iter_message_ids(
     request = (
         service.users()
         .messages()
-        .list(**_list_messages_kwargs(query=query, label_ids=label_ids))
+        .list(**list_messages_kwargs(query=query, label_ids=label_ids))
     )
     while request is not None:
         response = with_retry(request.execute)
