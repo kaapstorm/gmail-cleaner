@@ -96,6 +96,8 @@ def test_create_filters_midbatch_failure_reports_partial():
     ):
         filters.create_filters(creds, inputs)
     assert exc_info.value.created == [good]
+    assert exc_info.value.failed_index == 1
+    assert '1' in str(exc_info.value)
     assert exc_info.value.__cause__ is err
 
 

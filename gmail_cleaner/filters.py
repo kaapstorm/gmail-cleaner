@@ -19,9 +19,13 @@ class CreateFiltersError(Exception):
     API error is preserved as ``__cause__``.
     """
 
-    def __init__(self, created: list[dict]) -> None:
-        super().__init__(f'create failed after {len(created)} filter(s)')
+    def __init__(self, created: list[dict], failed_index: int) -> None:
+        super().__init__(
+            f'create failed at filter index {failed_index} '
+            f'after {len(created)} succeeded',
+        )
         self.created = created
+        self.failed_index = failed_index
 
 
 class FilterNotFound(Exception):
@@ -49,11 +53,11 @@ def create_filters(
 ) -> list[dict]:
     service = gmail.build_service(creds)
     created: list[dict] = []
-    for filter_dict in filter_dicts:
+    for index, filter_dict in enumerate(filter_dicts):
         try:
             created.append(gmail.create_filter(service, filter_dict))
         except HttpError as exc:
-            raise CreateFiltersError(created) from exc
+            raise CreateFiltersError(created, failed_index=index) from exc
     return created
 
 

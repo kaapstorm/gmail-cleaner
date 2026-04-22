@@ -116,7 +116,7 @@ def test_create_filter_midbatch_failure_prints_created_and_exits_nonzero():
     ]
     _write_jsonl(path, inputs)
     good = {'id': 'f1', **inputs[0]}
-    err = filters.CreateFiltersError([good])
+    err = filters.CreateFiltersError([good], failed_index=1)
     with (
         patch('gmail_cleaner.auth.load_token', return_value=creds),
         patch(
