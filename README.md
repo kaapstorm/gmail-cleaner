@@ -3,6 +3,16 @@ GMail Cleaner
 
 A set of command line tools for cleaning GMail.
 
+**GMail Cleaner** is intended to be used alongside an AI agent like
+Claude Code. An example prompt might look something like this:
+
+> Read @README.md on how to use GMail Cleaner. I have logged into GMail
+> already. Run `export-inbox` to export the metadata about the emails in
+> my inbox, and run `list-filters` to see my current filters. Then
+> analyze a sample of exported email metadata. Then we can discuss how
+> to improve my filters so that only important or actionable emails end
+> up in my inbox.
+
 
 Setup
 -----
