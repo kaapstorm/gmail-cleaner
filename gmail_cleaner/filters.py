@@ -3,13 +3,7 @@ from typing import NamedTuple
 from google.oauth2.credentials import Credentials
 from googleapiclient.errors import HttpError
 
-from gmail_cleaner.gmail import (
-    _create_filter,
-    _delete_filter,
-    _get_filter,
-    _list_filters,
-    build_service,
-)
+from gmail_cleaner import gmail
 
 
 class DeleteResult(NamedTuple):
@@ -35,14 +29,14 @@ class FilterNotFound(Exception):
 
 
 def list_filters(creds: Credentials) -> list[dict]:
-    service = build_service(creds)
-    return _list_filters(service)
+    service = gmail.build_service(creds)
+    return gmail.list_filters(service)
 
 
 def get_filter(creds: Credentials, filter_id: str) -> dict:
-    service = build_service(creds)
+    service = gmail.build_service(creds)
     try:
-        return _get_filter(service, filter_id)
+        return gmail.get_filter(service, filter_id)
     except HttpError as exc:
         if getattr(exc.resp, 'status', None) == 404:
             raise FilterNotFound(filter_id) from exc
@@ -53,11 +47,11 @@ def create_filters(
     creds: Credentials,
     filter_dicts: list[dict],
 ) -> list[dict]:
-    service = build_service(creds)
+    service = gmail.build_service(creds)
     created: list[dict] = []
     for filter_dict in filter_dicts:
         try:
-            created.append(_create_filter(service, filter_dict))
+            created.append(gmail.create_filter(service, filter_dict))
         except HttpError as exc:
             raise CreateFiltersError(created) from exc
     return created
@@ -67,12 +61,12 @@ def delete_filters(
     creds: Credentials,
     filter_ids: list[str],
 ) -> DeleteResult:
-    service = build_service(creds)
+    service = gmail.build_service(creds)
     deleted = 0
     missing: list[str] = []
     for filter_id in filter_ids:
         try:
-            _delete_filter(service, filter_id)
+            gmail.delete_filter(service, filter_id)
             deleted += 1
         except HttpError as exc:
             if getattr(exc.resp, 'status', None) == 404:

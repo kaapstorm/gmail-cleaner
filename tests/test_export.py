@@ -266,7 +266,7 @@ def test_iter_inbox_records_yields_records_and_reports_errors():
 
     with (
         patch(
-            'gmail_cleaner.export.build_service',
+            'gmail_cleaner.gmail.build_service',
             return_value=mock_service,
         ),
         patch(

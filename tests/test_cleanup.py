@@ -170,7 +170,7 @@ def test_scan_for_messages_returns_estimate_and_has_results():
         'nextPageToken': 'tok',
     }
     with patch(
-        'gmail_cleaner.cleanup.build_service',
+        'gmail_cleaner.gmail.build_service',
         return_value=mock_service,
     ):
         estimate, has_results = cleanup.scan_for_messages(creds, 'in:inbox')
@@ -185,7 +185,7 @@ def test_scan_for_messages_empty_first_page_no_token():
         'resultSizeEstimate': 0,
     }
     with patch(
-        'gmail_cleaner.cleanup.build_service',
+        'gmail_cleaner.gmail.build_service',
         return_value=mock_service,
     ):
         estimate, has_results = cleanup.scan_for_messages(creds, 'in:inbox')
@@ -201,7 +201,7 @@ def test_scan_for_messages_empty_first_page_with_token():
         'nextPageToken': 'tok',
     }
     with patch(
-        'gmail_cleaner.cleanup.build_service',
+        'gmail_cleaner.gmail.build_service',
         return_value=mock_service,
     ):
         estimate, has_results = cleanup.scan_for_messages(creds, 'in:inbox')
@@ -217,7 +217,7 @@ def test_scan_for_messages_messages_present_estimate_zero():
         'resultSizeEstimate': 0,
     }
     with patch(
-        'gmail_cleaner.cleanup.build_service',
+        'gmail_cleaner.gmail.build_service',
         return_value=mock_service,
     ):
         estimate, has_results = cleanup.scan_for_messages(creds, 'in:inbox')
@@ -234,7 +234,7 @@ def test_delete_messages_matching_paginates_and_deletes():
     mock_service.users().messages().list_next.return_value = None
     progress: list[int] = []
     with patch(
-        'gmail_cleaner.cleanup.build_service',
+        'gmail_cleaner.gmail.build_service',
         return_value=mock_service,
     ):
         deleted = cleanup.delete_messages_matching(
@@ -253,7 +253,7 @@ def test_delete_messages_matching_empty():
     mock_service.users().messages().list().execute.return_value = {}
     mock_service.users().messages().list_next.return_value = None
     with patch(
-        'gmail_cleaner.cleanup.build_service',
+        'gmail_cleaner.gmail.build_service',
         return_value=mock_service,
     ):
         deleted = cleanup.delete_messages_matching(
@@ -309,11 +309,11 @@ def test_find_label_returns_none_when_not_found():
     mock_service = MagicMock()
     with (
         patch(
-            'gmail_cleaner.cleanup.build_service',
+            'gmail_cleaner.gmail.build_service',
             return_value=mock_service,
         ),
         patch(
-            'gmail_cleaner.cleanup._list_user_labels',
+            'gmail_cleaner.gmail.list_user_labels',
             return_value=[
                 {'id': 'L1', 'name': 'Other', 'type': 'user'},
             ],
@@ -332,11 +332,11 @@ def test_find_label_returns_label_estimate_and_has_messages():
     }
     with (
         patch(
-            'gmail_cleaner.cleanup.build_service',
+            'gmail_cleaner.gmail.build_service',
             return_value=mock_service,
         ),
         patch(
-            'gmail_cleaner.cleanup._list_user_labels',
+            'gmail_cleaner.gmail.list_user_labels',
             return_value=[label],
         ),
     ):
@@ -368,11 +368,11 @@ def test_delete_label_completely_deletes_messages_filters_and_label():
     ]
     with (
         patch(
-            'gmail_cleaner.cleanup.build_service',
+            'gmail_cleaner.gmail.build_service',
             return_value=mock_service,
         ),
-        patch('gmail_cleaner.cleanup._list_filters', return_value=filters),
-        patch('gmail_cleaner.cleanup._delete_filter') as del_filter,
+        patch('gmail_cleaner.gmail.list_filters', return_value=filters),
+        patch('gmail_cleaner.gmail.delete_filter') as del_filter,
         patch('gmail_cleaner.cleanup._delete_label_by_id') as del_label,
     ):
         msgs, fs = cleanup.delete_label_completely(
@@ -399,11 +399,11 @@ def test_delete_label_completely_handles_filters_without_action():
     ]
     with (
         patch(
-            'gmail_cleaner.cleanup.build_service',
+            'gmail_cleaner.gmail.build_service',
             return_value=mock_service,
         ),
-        patch('gmail_cleaner.cleanup._list_filters', return_value=filters),
-        patch('gmail_cleaner.cleanup._delete_filter') as del_filter,
+        patch('gmail_cleaner.gmail.list_filters', return_value=filters),
+        patch('gmail_cleaner.gmail.delete_filter') as del_filter,
         patch('gmail_cleaner.cleanup._delete_label_by_id'),
     ):
         msgs, fs = cleanup.delete_label_completely(
@@ -423,16 +423,16 @@ def test_delete_label_completely_zero_matching_filters():
     mock_service.users().messages().list_next.return_value = None
     with (
         patch(
-            'gmail_cleaner.cleanup.build_service',
+            'gmail_cleaner.gmail.build_service',
             return_value=mock_service,
         ),
         patch(
-            'gmail_cleaner.cleanup._list_filters',
+            'gmail_cleaner.gmail.list_filters',
             return_value=[
                 {'id': 'f2', 'action': {'addLabelIds': ['L2']}},
             ],
         ),
-        patch('gmail_cleaner.cleanup._delete_filter') as del_filter,
+        patch('gmail_cleaner.gmail.delete_filter') as del_filter,
         patch('gmail_cleaner.cleanup._delete_label_by_id'),
     ):
         _, fs = cleanup.delete_label_completely(
@@ -452,10 +452,10 @@ def test_delete_label_completely_zero_messages_still_cleans_up():
     mock_service.users().messages().list_next.return_value = None
     with (
         patch(
-            'gmail_cleaner.cleanup.build_service',
+            'gmail_cleaner.gmail.build_service',
             return_value=mock_service,
         ),
-        patch('gmail_cleaner.cleanup._list_filters', return_value=[]),
+        patch('gmail_cleaner.gmail.list_filters', return_value=[]),
         patch('gmail_cleaner.cleanup._delete_label_by_id') as del_label,
     ):
         msgs, fs = cleanup.delete_label_completely(

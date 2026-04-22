@@ -46,7 +46,7 @@ def test_list_user_labels_filters_to_user_type_and_sorts_by_name():
             {'id': 'Label_1', 'name': 'Apple', 'type': 'user'},
         ],
     }
-    result = gmail._list_user_labels(mock_service)
+    result = gmail.list_user_labels(mock_service)
     assert [label['name'] for label in result] == ['Apple', 'Zebra']
     assert all(label['type'] == 'user' for label in result)
 
@@ -62,7 +62,7 @@ def test_list_user_labels_filters_to_user_type_and_sorts_by_name():
 def test_label_has_recent_message(response, expected):
     mock_service = MagicMock()
     mock_service.users().messages().list().execute.return_value = response
-    result = gmail._label_has_recent_message(mock_service, 'Label_1', '2y')
+    result = gmail.label_has_recent_message(mock_service, 'Label_1', '2y')
     assert result is expected
 
 
@@ -71,7 +71,7 @@ def test_label_has_recent_message_passes_label_id_and_age():
     mock_service.users().messages().list().execute.return_value = {
         'messages': [{'id': 'm1'}],
     }
-    gmail._label_has_recent_message(mock_service, 'Label_1', '30d')
+    gmail.label_has_recent_message(mock_service, 'Label_1', '30d')
     mock_service.users().messages().list.assert_called_with(
         userId='me',
         labelIds=['Label_1'],
@@ -91,11 +91,11 @@ def test_find_old_labels_returns_old_labels_and_total():
     with (
         patch('gmail_cleaner.gmail.build'),
         patch(
-            'gmail_cleaner.gmail._list_user_labels',
+            'gmail_cleaner.gmail.list_user_labels',
             return_value=labels,
         ),
         patch(
-            'gmail_cleaner.gmail._label_has_recent_message',
+            'gmail_cleaner.gmail.label_has_recent_message',
             side_effect=lambda _s, label_id, _a: has_recent[label_id],
         ),
     ):
@@ -218,7 +218,7 @@ def test_iter_message_headers_builds_service_once():
 
 
 def test_with_retry_returns_value_on_first_success():
-    result = gmail._with_retry(lambda: 'ok')
+    result = gmail.with_retry(lambda: 'ok')
     assert result == 'ok'
 
 
@@ -230,7 +230,7 @@ def test_with_retry_retries_on_5xx():
             'ok',
         ],
     )
-    assert gmail._with_retry(func) == 'ok'
+    assert gmail.with_retry(func) == 'ok'
     assert func.call_count == 2
 
 
@@ -242,21 +242,21 @@ def test_with_retry_retries_on_429():
             'ok',
         ],
     )
-    assert gmail._with_retry(func) == 'ok'
+    assert gmail.with_retry(func) == 'ok'
 
 
 def test_with_retry_does_not_retry_on_403():
     err = HttpError(MagicMock(status=403), b'')
     func = MagicMock(side_effect=err)
     with pytest.raises(HttpError):
-        gmail._with_retry(func)
+        gmail.with_retry(func)
     assert func.call_count == 1
 
 
 def test_with_retry_does_not_retry_on_value_error():
     func = MagicMock(side_effect=ValueError('bug'))
     with pytest.raises(ValueError):
-        gmail._with_retry(func)
+        gmail.with_retry(func)
     assert func.call_count == 1
 
 
@@ -265,7 +265,7 @@ def test_with_retry_raises_after_all_attempts_fail():
     err = HttpError(MagicMock(status=500), b'')
     func = MagicMock(side_effect=err)
     with pytest.raises(HttpError):
-        gmail._with_retry(func)
+        gmail.with_retry(func)
     assert func.call_count == 3
 
 
@@ -314,7 +314,7 @@ def test_with_retry_honors_retry_after_header(monkeypatch):
     )
     err = _http_error_with_retry_after('7')
     func = MagicMock(side_effect=[err, 'ok'])
-    assert gmail._with_retry(func) == 'ok'
+    assert gmail.with_retry(func) == 'ok'
     assert sleeps == [7.0]
 
 
@@ -326,7 +326,7 @@ def test_with_retry_falls_back_to_default_delay(monkeypatch):
     )
     err = HttpError(MagicMock(status=500, headers={}), b'')
     func = MagicMock(side_effect=[err, 'ok'])
-    assert gmail._with_retry(func) == 'ok'
+    assert gmail.with_retry(func) == 'ok'
     assert sleeps == [gmail._RETRY_DELAYS[0]]
 
 
@@ -339,18 +339,18 @@ def test_list_filters_returns_filter_list():
     mock_service.users().settings().filters().list().execute.return_value = {
         'filter': filters,
     }
-    assert gmail._list_filters(mock_service) == filters
+    assert gmail.list_filters(mock_service) == filters
 
 
 def test_list_filters_empty_response():
     mock_service = MagicMock()
     mock_service.users().settings().filters().list().execute.return_value = {}
-    assert gmail._list_filters(mock_service) == []
+    assert gmail.list_filters(mock_service) == []
 
 
 def test_delete_filter_calls_api():
     mock_service = MagicMock()
-    gmail._delete_filter(mock_service, 'f1')
+    gmail.delete_filter(mock_service, 'f1')
     mock_service.users().settings().filters().delete.assert_called_with(
         userId='me',
         id='f1',
@@ -365,7 +365,7 @@ def test_delete_filter_retries_on_5xx():
         err,
         None,
     ]
-    gmail._delete_filter(mock_service, 'f1')
+    gmail.delete_filter(mock_service, 'f1')
     assert (
         mock_service.users().settings().filters().delete().execute.call_count
         == 2
@@ -379,7 +379,7 @@ def test_create_filter_calls_api_and_returns_created():
         created
     )
     body = {'criteria': {'from': 'x@y'}, 'action': {}}
-    assert gmail._create_filter(mock_service, body) == created
+    assert gmail.create_filter(mock_service, body) == created
     mock_service.users().settings().filters().create.assert_called_with(
         userId='me',
         body=body,
@@ -390,7 +390,7 @@ def test_get_filter_calls_api_and_returns_filter():
     mock_service = MagicMock()
     filt = {'id': 'f9', 'criteria': {}, 'action': {}}
     mock_service.users().settings().filters().get().execute.return_value = filt
-    assert gmail._get_filter(mock_service, 'f9') == filt
+    assert gmail.get_filter(mock_service, 'f9') == filt
     mock_service.users().settings().filters().get.assert_called_with(
         userId='me',
         id='f9',

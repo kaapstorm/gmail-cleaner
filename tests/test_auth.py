@@ -5,10 +5,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from google.auth.exceptions import RefreshError, TransportError
+from unmagic import use
 
 import gmail_cleaner.auth as auth
 from tests.fixtures import tmp_dir
-from unmagic import use
 
 
 def test_get_credentials_path_default():

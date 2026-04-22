@@ -59,7 +59,7 @@ def _retry_after_seconds(exc: BaseException) -> float | None:
     return max(0.0, (target - datetime.now(timezone.utc)).total_seconds())
 
 
-def _with_retry(fn: Callable[..., T], *args: Any, **kwargs: Any) -> T:
+def with_retry(fn: Callable[..., T], *args: Any, **kwargs: Any) -> T:
     for attempt in range(len(_RETRY_DELAYS) + 1):
         try:
             return fn(*args, **kwargs)
@@ -82,14 +82,14 @@ def build_service(creds: Credentials) -> Service:
 
 def get_user_email(creds: Credentials) -> str:
     service = build_service(creds)
-    profile = _with_retry(
+    profile = with_retry(
         service.users().getProfile(userId='me').execute,
     )
     return profile['emailAddress']
 
 
-def _list_user_labels(service: Service) -> list[dict]:
-    response = _with_retry(
+def list_user_labels(service: Service) -> list[dict]:
+    response = with_retry(
         service.users().labels().list(userId='me').execute,
     )
     user_labels = [
@@ -100,12 +100,12 @@ def _list_user_labels(service: Service) -> list[dict]:
     return sorted(user_labels, key=lambda label: label['name'])
 
 
-def _label_has_recent_message(
+def label_has_recent_message(
     service: Service,
     label_id: str,
     age: str,
 ) -> bool:
-    response = _with_retry(
+    response = with_retry(
         service.users()
         .messages()
         .list(
@@ -124,11 +124,11 @@ def find_old_labels(
     age: str,
 ) -> tuple[list[dict], int]:
     service = build_service(creds)
-    labels = _list_user_labels(service)
+    labels = list_user_labels(service)
     old = [
         label
         for label in labels
-        if not _label_has_recent_message(service, label['id'], age)
+        if not label_has_recent_message(service, label['id'], age)
     ]
     return old, len(labels)
 
@@ -140,7 +140,7 @@ def search_messages(
     max_results: int,
 ) -> tuple[list[str], int]:
     service = build_service(creds)
-    response = _with_retry(
+    response = with_retry(
         service.users()
         .messages()
         .list(
@@ -155,7 +155,7 @@ def search_messages(
     return ids, estimate
 
 
-def _extract_headers(
+def extract_headers(
     payload: dict,
     wanted: Iterable[str],
 ) -> dict[str, str]:
@@ -175,11 +175,11 @@ def _extract_headers(
 _WANTED_HEADERS = ('Date', 'From', 'Subject')
 
 
-def _fetch_message_headers(
+def fetch_message_headers(
     service: Service,
     message_id: str,
 ) -> dict[str, str]:
-    response = _with_retry(
+    response = with_retry(
         service.users()
         .messages()
         .get(
@@ -191,7 +191,7 @@ def _fetch_message_headers(
         .execute,
     )
     payload = response.get('payload', {}) or {}
-    found = _extract_headers(payload, _WANTED_HEADERS)
+    found = extract_headers(payload, _WANTED_HEADERS)
     return {name: found.get(name, '') for name in _WANTED_HEADERS}
 
 
@@ -206,18 +206,18 @@ def iter_message_headers(
     """
     service = build_service(creds)
     for message_id in message_ids:
-        yield _fetch_message_headers(service, message_id)
+        yield fetch_message_headers(service, message_id)
 
 
-def _list_filters(service: Service) -> list[dict]:
-    response = _with_retry(
+def list_filters(service: Service) -> list[dict]:
+    response = with_retry(
         service.users().settings().filters().list(userId='me').execute,
     )
     return response.get('filter', [])
 
 
-def _delete_filter(service: Service, filter_id: str) -> None:
-    _with_retry(
+def delete_filter(service: Service, filter_id: str) -> None:
+    with_retry(
         service.users()
         .settings()
         .filters()
@@ -226,8 +226,8 @@ def _delete_filter(service: Service, filter_id: str) -> None:
     )
 
 
-def _create_filter(service: Service, filter_dict: dict) -> dict:
-    return _with_retry(
+def create_filter(service: Service, filter_dict: dict) -> dict:
+    return with_retry(
         service.users()
         .settings()
         .filters()
@@ -236,8 +236,8 @@ def _create_filter(service: Service, filter_dict: dict) -> dict:
     )
 
 
-def _get_filter(service: Service, filter_id: str) -> dict:
-    return _with_retry(
+def get_filter(service: Service, filter_id: str) -> dict:
+    return with_retry(
         service.users()
         .settings()
         .filters()

@@ -3,14 +3,8 @@ from typing import Callable, NamedTuple
 
 from google.oauth2.credentials import Credentials
 
-from gmail_cleaner.gmail import (
-    Service,
-    _delete_filter,
-    _list_filters,
-    _list_user_labels,
-    _with_retry,
-    build_service,
-)
+from gmail_cleaner import gmail
+from gmail_cleaner.gmail import Service
 
 _LIST_PAGE_SIZE = 500
 _DELETE_BATCH_SIZE = 1000
@@ -57,7 +51,7 @@ def preview_query(
     is exact. Callers use it for dry-run output where accuracy
     outweighs latency.
     """
-    service = build_service(creds)
+    service = gmail.build_service(creds)
     sample_ids: list[str] = []
     total = 0
     for message_id in _iter_message_ids(
@@ -84,7 +78,7 @@ def preview_label(
     filter records whose ``addLabelIds`` action targets this label.
     Makes no destructive API calls.
     """
-    service = build_service(creds)
+    service = gmail.build_service(creds)
     label_id = label['id']
     sample_ids: list[str] = []
     total = 0
@@ -92,7 +86,7 @@ def preview_label(
         if len(sample_ids) < sample_size:
             sample_ids.append(message_id)
         total += 1
-    filters = _list_filters(service)
+    filters = gmail.list_filters(service)
     matching = [
         f
         for f in filters
@@ -126,7 +120,7 @@ def _iter_message_ids(
         .list(**_list_messages_kwargs(query=query, label_ids=label_ids))
     )
     while request is not None:
-        response = _with_retry(request.execute)
+        response = gmail.with_retry(request.execute)
         for message in response.get('messages', []):
             yield message['id']
         request = (
@@ -156,19 +150,19 @@ def _delete_message_batches(
     for message_id in message_ids:
         batch.append(message_id)
         if len(batch) >= _DELETE_BATCH_SIZE:
-            _with_retry(_batch_delete, service, batch)
+            gmail.with_retry(_batch_delete, service, batch)
             deleted += len(batch)
             on_progress(deleted)
             batch = []
     if batch:
-        _with_retry(_batch_delete, service, batch)
+        gmail.with_retry(_batch_delete, service, batch)
         deleted += len(batch)
         on_progress(deleted)
     return deleted
 
 
 def _delete_label_by_id(service: Service, label_id: str) -> None:
-    _with_retry(
+    gmail.with_retry(
         service.users().labels().delete(userId='me', id=label_id).execute,
     )
 
@@ -179,7 +173,7 @@ def _peek_query(
     query: str | None = None,
     label_ids: list[str] | None = None,
 ) -> ScanResult:
-    response = _with_retry(
+    response = gmail.with_retry(
         service.users()
         .messages()
         .list(**_list_messages_kwargs(query=query, label_ids=label_ids))
@@ -191,15 +185,15 @@ def _peek_query(
 
 
 def scan_for_messages(creds: Credentials, query: str) -> ScanResult:
-    return _peek_query(build_service(creds), query=query)
+    return _peek_query(gmail.build_service(creds), query=query)
 
 
 def find_label(
     creds: Credentials,
     label_name: str,
 ) -> LabelLookup | None:
-    service = build_service(creds)
-    for label in _list_user_labels(service):
+    service = gmail.build_service(creds)
+    for label in gmail.list_user_labels(service):
         if label['name'] == label_name:
             peek = _peek_query(service, label_ids=[label['id']])
             return LabelLookup(label, peek.estimate, peek.has_results)
@@ -224,14 +218,14 @@ def delete_label_completely(
     A ``LabelDeletion`` is only returned on full success; a mid-way
     failure raises instead of returning a partial count.
     """
-    service = build_service(creds)
+    service = gmail.build_service(creds)
     label_id = label['id']
     messages_deleted = _delete_message_batches(
         service,
         _iter_message_ids(service, label_ids=[label_id]),
         on_progress=on_progress,
     )
-    filters = _list_filters(service)
+    filters = gmail.list_filters(service)
     matching = [
         f
         for f in filters
@@ -239,7 +233,7 @@ def delete_label_completely(
     ]
     filters_deleted = 0
     for filter_record in matching:
-        _delete_filter(service, filter_record['id'])
+        gmail.delete_filter(service, filter_record['id'])
         filters_deleted += 1
     _delete_label_by_id(service, label_id)
     return LabelDeletion(messages_deleted, filters_deleted)
@@ -251,7 +245,7 @@ def delete_messages_matching(
     *,
     on_progress: Callable[[int], None],
 ) -> int:
-    service = build_service(creds)
+    service = gmail.build_service(creds)
     return _delete_message_batches(
         service,
         _iter_message_ids(service, query=query),

@@ -11,9 +11,9 @@ def test_list_filters_returns_all_filters():
     service = MagicMock()
     all_filters = [{'id': 'f1'}, {'id': 'f2'}]
     with (
-        patch('gmail_cleaner.filters.build_service', return_value=service),
+        patch('gmail_cleaner.gmail.build_service', return_value=service),
         patch(
-            'gmail_cleaner.filters._list_filters',
+            'gmail_cleaner.gmail.list_filters',
             return_value=all_filters,
         ) as mock_list,
     ):
@@ -26,9 +26,9 @@ def test_get_filter_returns_single_filter():
     service = MagicMock()
     one = {'id': 'f1', 'criteria': {}, 'action': {}}
     with (
-        patch('gmail_cleaner.filters.build_service', return_value=service),
+        patch('gmail_cleaner.gmail.build_service', return_value=service),
         patch(
-            'gmail_cleaner.filters._get_filter',
+            'gmail_cleaner.gmail.get_filter',
             return_value=one,
         ) as mock_get,
     ):
@@ -41,8 +41,8 @@ def test_get_filter_missing_raises_filter_not_found():
     service = MagicMock()
     err = HttpError(MagicMock(status=404), b'')
     with (
-        patch('gmail_cleaner.filters.build_service', return_value=service),
-        patch('gmail_cleaner.filters._get_filter', side_effect=err),
+        patch('gmail_cleaner.gmail.build_service', return_value=service),
+        patch('gmail_cleaner.gmail.get_filter', side_effect=err),
         pytest.raises(filters.FilterNotFound) as exc_info,
     ):
         filters.get_filter(creds, 'missing')
@@ -54,8 +54,8 @@ def test_get_filter_non_404_http_error_propagates():
     service = MagicMock()
     err = HttpError(MagicMock(status=500), b'')
     with (
-        patch('gmail_cleaner.filters.build_service', return_value=service),
-        patch('gmail_cleaner.filters._get_filter', side_effect=err),
+        patch('gmail_cleaner.gmail.build_service', return_value=service),
+        patch('gmail_cleaner.gmail.get_filter', side_effect=err),
         pytest.raises(HttpError),
     ):
         filters.get_filter(creds, 'f1')
@@ -70,9 +70,9 @@ def test_create_filters_creates_each_and_returns_created_list():
     ]
     outputs = [{'id': 'f1', **inputs[0]}, {'id': 'f2', **inputs[1]}]
     with (
-        patch('gmail_cleaner.filters.build_service', return_value=service),
+        patch('gmail_cleaner.gmail.build_service', return_value=service),
         patch(
-            'gmail_cleaner.filters._create_filter',
+            'gmail_cleaner.gmail.create_filter',
             side_effect=outputs,
         ) as mock_create,
     ):
@@ -87,9 +87,9 @@ def test_create_filters_midbatch_failure_reports_partial():
     err = HttpError(MagicMock(status=400), b'bad filter')
     inputs = [{'criteria': {'from': 'a@x'}, 'action': {}}, {'bogus': True}]
     with (
-        patch('gmail_cleaner.filters.build_service', return_value=service),
+        patch('gmail_cleaner.gmail.build_service', return_value=service),
         patch(
-            'gmail_cleaner.filters._create_filter',
+            'gmail_cleaner.gmail.create_filter',
             side_effect=[good, err],
         ),
         pytest.raises(filters.CreateFiltersError) as exc_info,
@@ -102,7 +102,7 @@ def test_create_filters_midbatch_failure_reports_partial():
 def test_create_filters_empty_input_returns_empty_list():
     creds = MagicMock()
     with patch(
-        'gmail_cleaner.filters.build_service',
+        'gmail_cleaner.gmail.build_service',
         return_value=MagicMock(),
     ):
         assert filters.create_filters(creds, []) == []
@@ -112,8 +112,8 @@ def test_delete_filters_deletes_all_given_ids():
     creds = MagicMock()
     service = MagicMock()
     with (
-        patch('gmail_cleaner.filters.build_service', return_value=service),
-        patch('gmail_cleaner.filters._delete_filter') as mock_del,
+        patch('gmail_cleaner.gmail.build_service', return_value=service),
+        patch('gmail_cleaner.gmail.delete_filter') as mock_del,
     ):
         result = filters.delete_filters(creds, ['f1', 'f2'])
     assert result == filters.DeleteResult(deleted=2, missing=[])
@@ -125,9 +125,9 @@ def test_delete_filters_404_is_recorded_as_missing():
     service = MagicMock()
     err = HttpError(MagicMock(status=404), b'')
     with (
-        patch('gmail_cleaner.filters.build_service', return_value=service),
+        patch('gmail_cleaner.gmail.build_service', return_value=service),
         patch(
-            'gmail_cleaner.filters._delete_filter',
+            'gmail_cleaner.gmail.delete_filter',
             side_effect=[None, err, None],
         ),
     ):
@@ -140,8 +140,8 @@ def test_delete_filters_non_404_http_error_propagates():
     service = MagicMock()
     err = HttpError(MagicMock(status=500), b'')
     with (
-        patch('gmail_cleaner.filters.build_service', return_value=service),
-        patch('gmail_cleaner.filters._delete_filter', side_effect=err),
+        patch('gmail_cleaner.gmail.build_service', return_value=service),
+        patch('gmail_cleaner.gmail.delete_filter', side_effect=err),
         pytest.raises(HttpError),
     ):
         filters.delete_filters(creds, ['f1'])

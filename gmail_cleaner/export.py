@@ -5,12 +5,8 @@ from typing import Any, Callable
 from google.oauth2.credentials import Credentials
 from googleapiclient.errors import HttpError
 
-from gmail_cleaner.gmail import (
-    Service,
-    _extract_headers,
-    _with_retry,
-    build_service,
-)
+from gmail_cleaner import gmail
+from gmail_cleaner.gmail import Service
 
 OnError = Callable[[str, HttpError], None]
 
@@ -86,7 +82,7 @@ def _split_addresses(raw: str | None) -> list[str]:
 
 def fetch_message_export(service: Service, message_id: str) -> dict:
     """Fetch a single message and return its export record."""
-    response = _with_retry(
+    response = gmail.with_retry(
         service.users()
         .messages()
         .get(
@@ -98,7 +94,7 @@ def fetch_message_export(service: Service, message_id: str) -> dict:
         .execute,
     )
     payload = response.get('payload', {}) or {}
-    headers = _extract_headers(payload, _EXPORT_HEADERS)
+    headers = gmail.extract_headers(payload, _EXPORT_HEADERS)
     record = {
         'id': response.get('id', message_id),
         'thread_id': response.get('threadId'),
@@ -127,7 +123,7 @@ def iter_inbox_ids(service: Service) -> Iterator[str]:
         kwargs: dict[str, Any] = {'userId': 'me', 'q': 'in:inbox'}
         if page_token:
             kwargs['pageToken'] = page_token
-        response = _with_retry(
+        response = gmail.with_retry(
             service.users().messages().list(**kwargs).execute,
         )
         for message in response.get('messages', []) or []:
@@ -149,7 +145,7 @@ def iter_inbox_records(
     reported via ``on_error(message_id, exc)`` and skipped; the
     iteration continues.
     """
-    service = build_service(creds)
+    service = gmail.build_service(creds)
     for message_id in iter_inbox_ids(service):
         try:
             yield fetch_message_export(service, message_id)
