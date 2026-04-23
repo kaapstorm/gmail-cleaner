@@ -254,6 +254,29 @@ def test_archive_messages_matching_removes_inbox_label():
     assert body['ids'] == ['m1', 'm2']
 
 
+def test_label_messages_matching_adds_label():
+    creds = MagicMock()
+    mock_service = MagicMock()
+    mock_service.users().messages().list().execute.return_value = {
+        'messages': [{'id': 'm1'}, {'id': 'm2'}],
+    }
+    mock_service.users().messages().list_next.return_value = None
+    with patch(
+        'gmail_cleaner.gmail.build_service',
+        return_value=mock_service,
+    ):
+        labeled = cleanup.label_messages_matching(
+            creds,
+            'subject:[Solutions]',
+            'Label_134',
+            on_progress=lambda _d: None,
+        )
+    assert labeled == 2
+    body = mock_service.users().messages().batchModify.call_args.kwargs['body']
+    assert body['addLabelIds'] == ['Label_134']
+    assert 'removeLabelIds' not in body
+
+
 def test_delete_label_by_id_calls_api():
     mock_service = MagicMock()
     cleanup._delete_label_by_id(mock_service, 'Label_1')
