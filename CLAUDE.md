@@ -8,8 +8,8 @@ Tests use pytest and
 Use pytest's parametrized tests to deduplicate tests that have the same
 structure.
 
-## Type hints                                                                 
-                                                                                
+## Type hints
+
 Type hints here are documentation. Include them when the type itself
 conveys something the name doesn't — e.g. a custom type alias, a
 `Union`, or a non-obvious structure. Omit them when the type is clear
@@ -58,6 +58,23 @@ run commands in the virtualenv.
 * Format: `uv run ruff format <path/to/file.py>`
 
 ## Project structure
+
+### Code layers
+
+Three layers, each with a distinct responsibility. Keep new code in
+the layer that matches its job; don't collapse them.
+
+| Layer                                              | Responsibility                                                                                                                                                                                     |
+|----------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `gmail_cleaner/gmail.py`                           | Thin wrappers over the Gmail API: `build_service`, `with_retry`, paginated iterators (`iter_message_ids`), and per-resource CRUD (`list_filters`, `create_label`, etc.). No business logic, no UX. |
+| `gmail_cleaner/{cleanup,export,filters,labels}.py` | Business logic that composes `gmail.py` primitives. Takes `Credentials` + plain args; returns `NamedTuple`s or iterators. No `typer`, no stdout/stderr, no prompts.                                |
+| `gmail_cleaner/commands/*.py`                      | Typer CLI entry points. Parse args, load creds, handle `--dry-run`/`--force` UX, print output and progress, then delegate to the logic layer. One file per subcommand.                             |
+
+When adding a new command:
+1. Add the primitive to `gmail.py` if the Gmail API call doesn't exist there yet.
+2. Add the logic function (returning data, not printing) to the appropriate `*.py` module — or create a new one if it's a distinct concern.
+3. Add a `commands/<name>.py` that wires argument parsing and UX to the logic function, and register it in `cli.py`.
+4. Add tests for each layer in the matching `tests/` location.
 
 ### Specs and plans
 
