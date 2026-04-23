@@ -255,6 +255,21 @@ def iter_message_headers(
         yield fetch_message_headers(service, message_id)
 
 
+def batch_modify(
+    service: Service,
+    message_ids: list[str],
+    *,
+    add_label_ids: list[str] | None = None,
+    remove_label_ids: list[str] | None = None,
+) -> None:
+    body: dict = {'ids': message_ids}
+    if add_label_ids:
+        body['addLabelIds'] = add_label_ids
+    if remove_label_ids:
+        body['removeLabelIds'] = remove_label_ids
+    service.users().messages().batchModify(userId='me', body=body).execute()
+
+
 def list_filters(service: Service) -> list[dict]:
     response = with_retry(
         service.users().settings().filters().list(userId='me').execute,

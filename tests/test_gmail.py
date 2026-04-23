@@ -330,6 +330,31 @@ def test_with_retry_falls_back_to_default_delay(monkeypatch):
     assert sleeps == [gmail._RETRY_DELAYS[0]]
 
 
+def test_batch_modify_sends_ids_and_label_changes():
+    mock_service = MagicMock()
+    gmail.batch_modify(
+        mock_service,
+        ['m1', 'm2'],
+        add_label_ids=['L1'],
+        remove_label_ids=['INBOX'],
+    )
+    mock_service.users().messages().batchModify.assert_called_with(
+        userId='me',
+        body={
+            'ids': ['m1', 'm2'],
+            'addLabelIds': ['L1'],
+            'removeLabelIds': ['INBOX'],
+        },
+    )
+
+
+def test_batch_modify_omits_empty_label_fields():
+    mock_service = MagicMock()
+    gmail.batch_modify(mock_service, ['m1'], remove_label_ids=['INBOX'])
+    body = mock_service.users().messages().batchModify.call_args.kwargs['body']
+    assert body == {'ids': ['m1'], 'removeLabelIds': ['INBOX']}
+
+
 def test_list_filters_returns_filter_list():
     mock_service = MagicMock()
     filters = [

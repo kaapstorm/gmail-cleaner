@@ -1,5 +1,6 @@
 import typer
 
+from gmail_cleaner.commands.archive_query import archive_query
 from gmail_cleaner.commands.create_filter import create_filter
 from gmail_cleaner.commands.create_label import create_label
 from gmail_cleaner.commands.delete_filter import delete_filter
@@ -31,6 +32,9 @@ app.command(
 app.command(
     help='Permanently delete all emails matching a Gmail query.',
 )(delete_query)
+app.command(
+    help='Archive (remove INBOX label from) all emails matching a Gmail query.',
+)(archive_query)
 app.command(
     help='Permanently delete a label, its filters, and all emails it labels.',
 )(delete_label)

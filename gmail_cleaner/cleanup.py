@@ -7,6 +7,7 @@ from gmail_cleaner import gmail
 from gmail_cleaner.gmail import Service
 
 _DELETE_BATCH_SIZE = 1000
+_MODIFY_BATCH_SIZE = 1000
 
 
 class ScanResult(NamedTuple):
@@ -123,6 +124,73 @@ def _delete_message_batches(
         deleted += len(batch)
         on_progress(deleted)
     return deleted
+
+
+def _modify_message_batches(
+    service: Service,
+    message_ids: Iterable[str],
+    *,
+    add_label_ids: list[str] | None = None,
+    remove_label_ids: list[str] | None = None,
+    on_progress: Callable[[int], None],
+) -> int:
+    modified = 0
+    batch: list[str] = []
+    for message_id in message_ids:
+        batch.append(message_id)
+        if len(batch) >= _MODIFY_BATCH_SIZE:
+            gmail.with_retry(
+                gmail.batch_modify,
+                service,
+                batch,
+                add_label_ids=add_label_ids,
+                remove_label_ids=remove_label_ids,
+            )
+            modified += len(batch)
+            on_progress(modified)
+            batch = []
+    if batch:
+        gmail.with_retry(
+            gmail.batch_modify,
+            service,
+            batch,
+            add_label_ids=add_label_ids,
+            remove_label_ids=remove_label_ids,
+        )
+        modified += len(batch)
+        on_progress(modified)
+    return modified
+
+
+def archive_messages_matching(
+    creds: Credentials,
+    query: str,
+    *,
+    on_progress: Callable[[int], None],
+) -> int:
+    service = gmail.build_service(creds)
+    return _modify_message_batches(
+        service,
+        gmail.iter_message_ids(service, query=query),
+        remove_label_ids=['INBOX'],
+        on_progress=on_progress,
+    )
+
+
+def label_messages_matching(
+    creds: Credentials,
+    query: str,
+    label_id: str,
+    *,
+    on_progress: Callable[[int], None],
+) -> int:
+    service = gmail.build_service(creds)
+    return _modify_message_batches(
+        service,
+        gmail.iter_message_ids(service, query=query),
+        add_label_ids=[label_id],
+        on_progress=on_progress,
+    )
 
 
 def _delete_label_by_id(service: Service, label_id: str) -> None:

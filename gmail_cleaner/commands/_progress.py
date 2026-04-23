@@ -7,15 +7,16 @@ from google.oauth2.credentials import Credentials
 from gmail_cleaner import gmail
 
 
-def report_progress(total_estimate, deleted):
-    """Write a running delete count to stderr.
+def report_progress(verb, total_estimate, count):
+    """Write a running count to stderr.
 
-    Called repeatedly during long-running deletes. Output goes to
-    stderr so it doesn't pollute stdout for callers piping the
-    command's output.
+    Called repeatedly during long-running bulk operations. Output
+    goes to stderr so it doesn't pollute stdout for callers piping
+    the command's output. ``verb`` is the past-tense action word
+    (e.g. ``'Deleted'``, ``'Archived'``, ``'Labeled'``).
     """
     print(
-        f'Deleted {deleted:,} of ~{total_estimate:,} messages...',
+        f'{verb} {count:,} of ~{total_estimate:,} messages...',
         file=sys.stderr,
     )
 

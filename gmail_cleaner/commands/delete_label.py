@@ -81,7 +81,7 @@ def delete_label(
             abort=True,
         )
 
-    on_progress = functools.partial(report_progress, found.estimate)
+    on_progress = functools.partial(report_progress, 'Deleted', found.estimate)
     result = cleanup.delete_label_completely(
         creds,
         found.label,

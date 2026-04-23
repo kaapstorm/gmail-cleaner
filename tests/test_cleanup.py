@@ -198,6 +198,62 @@ def test_delete_messages_matching_empty():
     mock_service.users().messages().batchDelete.assert_not_called()
 
 
+def test_modify_message_batches_groups_by_1000():
+    mock_service = MagicMock()
+    ids = [f'm{i}' for i in range(1500)]
+    progress: list[int] = []
+    total = cleanup._modify_message_batches(
+        mock_service,
+        ids,
+        remove_label_ids=['INBOX'],
+        on_progress=progress.append,
+    )
+    batch_modify = mock_service.users().messages().batchModify
+    assert batch_modify.call_count == 2
+    body_1 = batch_modify.call_args_list[0].kwargs['body']
+    body_2 = batch_modify.call_args_list[1].kwargs['body']
+    assert len(body_1['ids']) == 1000
+    assert body_1['removeLabelIds'] == ['INBOX']
+    assert 'addLabelIds' not in body_1
+    assert len(body_2['ids']) == 500
+    assert progress == [1000, 1500]
+    assert total == 1500
+
+
+def test_modify_message_batches_empty_is_noop():
+    mock_service = MagicMock()
+    total = cleanup._modify_message_batches(
+        mock_service,
+        iter([]),
+        add_label_ids=['L1'],
+        on_progress=lambda _d: None,
+    )
+    mock_service.users().messages().batchModify.assert_not_called()
+    assert total == 0
+
+
+def test_archive_messages_matching_removes_inbox_label():
+    creds = MagicMock()
+    mock_service = MagicMock()
+    mock_service.users().messages().list().execute.return_value = {
+        'messages': [{'id': 'm1'}, {'id': 'm2'}],
+    }
+    mock_service.users().messages().list_next.return_value = None
+    with patch(
+        'gmail_cleaner.gmail.build_service',
+        return_value=mock_service,
+    ):
+        archived = cleanup.archive_messages_matching(
+            creds,
+            'in:inbox',
+            on_progress=lambda _d: None,
+        )
+    assert archived == 2
+    body = mock_service.users().messages().batchModify.call_args.kwargs['body']
+    assert body['removeLabelIds'] == ['INBOX']
+    assert body['ids'] == ['m1', 'm2']
+
+
 def test_delete_label_by_id_calls_api():
     mock_service = MagicMock()
     cleanup._delete_label_by_id(mock_service, 'Label_1')
