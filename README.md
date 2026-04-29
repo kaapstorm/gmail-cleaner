@@ -14,6 +14,19 @@ Claude Code. An example prompt might look something like this:
 > up in my inbox.
 
 
+How NOT to use GMail Cleaner
+----------------------------
+
+The `export-inbox` command exports email metadata, including the first
+30 characters of the content. Some of this metadata (like, who sends
+you emails) could possibly be gleaned from LinkedIn. But if you get
+emails from people whose identities or email addresses you don't want
+to be uploaded to a third party, or where the first 30 characters might
+be private, do not ask or allow a third-party AI agent to read the
+output of `export-inbox`! For this kind of scenario, use a self-hosted
+model like Ollama.
+
+
 Setup
 -----
 
