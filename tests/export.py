@@ -1,12 +1,11 @@
 from unittest.mock import MagicMock, patch
 
-import pytest
+from testsweet import test, test_params
 
 from gmail_cleaner import export
 
 
-@pytest.mark.parametrize(
-    'raw, expected',
+@test_params(
     [
         (None, None),
         ('', None),
@@ -18,14 +17,13 @@ from gmail_cleaner import export
         ('not a real date', 'not a real date'),
         # Parseable but invalid month: falls back to raw string.
         ('Mon, 99 Abc 2026 14:30:00 -0400', 'Mon, 99 Abc 2026 14:30:00 -0400'),
-    ],
+    ]
 )
-def test_parse_iso_date(raw, expected):
+def parse_iso_date(raw, expected):
     assert export._parse_iso_date(raw) == expected
 
 
-@pytest.mark.parametrize(
-    'payload, expected',
+@test_params(
     [
         # Bare text/plain — no attachments possible.
         ({'mimeType': 'text/plain'}, []),
@@ -89,13 +87,14 @@ def test_parse_iso_date(raw, expected):
             },
             [],
         ),
-    ],
+    ]
 )
-def test_extract_attachments(payload, expected):
+def extract_attachments(payload, expected):
     assert export._extract_attachments(payload) == expected
 
 
-def test_extract_attachments_indeterminate_returns_none():
+@test
+def extract_attachments_indeterminate_returns_none():
     payload = {'mimeType': 'multipart/mixed'}
     assert export._extract_attachments(payload) is None
 
@@ -115,7 +114,8 @@ def _make_message(
     }
 
 
-def test_fetch_message_export_full_record():
+@test
+def fetch_message_export_full_record():
     mock_service = MagicMock()
     mock_service.users().messages().get().execute.return_value = _make_message(
         headers=[
@@ -164,7 +164,8 @@ def test_fetch_message_export_full_record():
     }
 
 
-def test_fetch_message_export_missing_headers_use_sensible_defaults():
+@test
+def fetch_message_export_missing_headers_use_sensible_defaults():
     mock_service = MagicMock()
     mock_service.users().messages().get().execute.return_value = _make_message(
         headers=[],
@@ -182,7 +183,8 @@ def test_fetch_message_export_missing_headers_use_sensible_defaults():
     assert result['attachments'] == []
 
 
-def test_fetch_message_export_indeterminate_attachments_uses_has_attachments():
+@test
+def fetch_message_export_indeterminate_attachments_uses_has_attachments():
     mock_service = MagicMock()
     mock_service.users().messages().get().execute.return_value = _make_message(
         payload_extra={'mimeType': 'multipart/mixed'},
@@ -192,7 +194,8 @@ def test_fetch_message_export_indeterminate_attachments_uses_has_attachments():
     assert result['has_attachments'] is True
 
 
-def test_fetch_message_export_uses_metadata_format_and_header_allowlist():
+@test
+def fetch_message_export_uses_metadata_format_and_header_allowlist():
     mock_service = MagicMock()
     mock_service.users().messages().get().execute.return_value = (
         _make_message()
@@ -214,7 +217,8 @@ def test_fetch_message_export_uses_metadata_format_and_header_allowlist():
     )
 
 
-def test_iter_inbox_records_yields_records_and_reports_errors():
+@test
+def iter_inbox_records_yields_records_and_reports_errors():
     from googleapiclient.errors import HttpError
 
     mock_creds = MagicMock()

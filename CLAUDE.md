@@ -2,11 +2,18 @@
 
 ## Tests
 
-Tests use pytest and
-[pytest-unmagic](https://github.com/kaapstorm/pytest-unmagic/tree/nh/docs_5/)
+Tests use [testsweet](https://github.com/kaapstorm/testsweet). Mark each
+test function with `@test`; test files don't need a `test_` prefix.
 
-Use pytest's parametrized tests to deduplicate tests that have the same
+Use `@test_params([...])` to deduplicate tests that have the same
 structure.
+
+Use `catch_exceptions()` to assert that a block raises — capture the
+exception in the yielded list and check `type(excs[0]) is X`.
+
+For setup/teardown, use plain context managers (`with
+tempfile.TemporaryDirectory()`, `with patch(...)`) inline in the test —
+testsweet has no fixture system.
 
 ## Type hints
 
@@ -51,7 +58,7 @@ The project uses a uv virtualenv. Prefix commands with `uv run ...` to
 run commands in the virtualenv.
 
 * Python: `uv run python3 ...`
-* Run tests: `uv run pytest [path/to/file.py::TestClass::test_method]`
+* Run tests: `uv run python -m testsweet [path/to/file.py]`
 * Check typing: `uv run mypy [path/to/file.py`
 * Check linting: `uv run ruff check`
 * Sort imports: `uv run ruff check --select I --fix <path/to/file.py>`

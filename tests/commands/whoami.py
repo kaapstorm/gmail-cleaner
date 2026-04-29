@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock, patch
 
+from testsweet import test
 from typer.testing import CliRunner
 
 from gmail_cleaner.cli import app
@@ -7,19 +8,22 @@ from gmail_cleaner.cli import app
 runner = CliRunner()
 
 
-def test_whoami_not_logged_in_exits_with_error():
+@test
+def whoami_not_logged_in_exits_with_error():
     with patch('gmail_cleaner.auth.load_token', return_value=None):
         result = runner.invoke(app, ['whoami'])
     assert result.exit_code == 1
 
 
-def test_whoami_not_logged_in_prints_message():
+@test
+def whoami_not_logged_in_prints_message():
     with patch('gmail_cleaner.auth.load_token', return_value=None):
         result = runner.invoke(app, ['whoami'])
     assert 'Not logged in' in result.output
 
 
-def test_whoami_prints_email():
+@test
+def whoami_prints_email():
     mock_creds = MagicMock()
     with patch('gmail_cleaner.auth.load_token', return_value=mock_creds):
         with patch(

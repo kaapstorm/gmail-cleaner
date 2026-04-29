@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock, patch
 
+from testsweet import test
 from typer.testing import CliRunner
 
 from gmail_cleaner.cleanup import (
@@ -12,14 +13,16 @@ from gmail_cleaner.cli import app
 runner = CliRunner()
 
 
-def test_delete_label_not_logged_in_exits_with_error():
+@test
+def delete_label_not_logged_in_exits_with_error():
     with patch('gmail_cleaner.auth.load_token', return_value=None):
         result = runner.invoke(app, ['delete-label', 'MySpace'])
     assert result.exit_code == 1
     assert 'Not logged in' in (result.stdout + (result.stderr or ''))
 
 
-def test_delete_label_not_found_exits_with_error():
+@test
+def delete_label_not_found_exits_with_error():
     creds = MagicMock()
     with (
         patch('gmail_cleaner.auth.load_token', return_value=creds),
@@ -33,7 +36,8 @@ def test_delete_label_not_found_exits_with_error():
     assert "Label 'MySpace' not found" in result.stdout
 
 
-def test_delete_label_aborted_by_user():
+@test
+def delete_label_aborted_by_user():
     creds = MagicMock()
     label = {'id': 'L1', 'name': 'MySpace', 'type': 'user'}
     with (
@@ -55,7 +59,8 @@ def test_delete_label_aborted_by_user():
     del_complete.assert_not_called()
 
 
-def test_delete_label_deletes_messages_filters_and_label():
+@test
+def delete_label_deletes_messages_filters_and_label():
     creds = MagicMock()
     label = {'id': 'L1', 'name': 'MySpace', 'type': 'user'}
     with (
@@ -81,7 +86,8 @@ def test_delete_label_deletes_messages_filters_and_label():
     )
 
 
-def test_delete_label_zero_messages_still_proceeds():
+@test
+def delete_label_zero_messages_still_proceeds():
     creds = MagicMock()
     label = {'id': 'L1', 'name': 'X', 'type': 'user'}
     with (
@@ -101,7 +107,8 @@ def test_delete_label_zero_messages_still_proceeds():
     assert 'Deleted 0 messages, 0 filters' in result.stderr
 
 
-def test_delete_label_dry_run_shows_count_filters_and_sample():
+@test
+def delete_label_dry_run_shows_count_filters_and_sample():
     creds = MagicMock()
     label = {'id': 'L1', 'name': 'MySpace', 'type': 'user'}
     preview = LabelPreview(
@@ -161,7 +168,8 @@ def test_delete_label_dry_run_shows_count_filters_and_sample():
     assert '2026-04-13  Alice <a@example.com>  Hi' in result.stdout
 
 
-def test_delete_label_dry_run_with_no_filters_omits_filters_section():
+@test
+def delete_label_dry_run_with_no_filters_omits_filters_section():
     creds = MagicMock()
     label = {'id': 'L1', 'name': 'X', 'type': 'user'}
     preview = LabelPreview(total=0, sample_ids=[], filters=[])

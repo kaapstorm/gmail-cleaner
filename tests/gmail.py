@@ -1,21 +1,13 @@
 from unittest.mock import MagicMock, patch
 
-import pytest
 from googleapiclient.errors import HttpError
-from unmagic import fixture, use
+from testsweet import catch_exceptions, test, test_params
 
 from gmail_cleaner import gmail
 
-monkeypatch = fixture('monkeypatch')
 
-
-@fixture
-def no_sleep():
-    monkeypatch().setattr('gmail_cleaner.gmail.time.sleep', lambda _s: None)
-    yield
-
-
-def test_build_service_calls_build():
+@test
+def build_service_calls_build():
     mock_creds = MagicMock()
     mock_service = MagicMock()
     with patch(
@@ -26,7 +18,8 @@ def test_build_service_calls_build():
     assert result is mock_service
 
 
-def test_get_user_email_returns_email_address():
+@test
+def get_user_email_returns_email_address():
     mock_creds = MagicMock()
     mock_service = MagicMock()
     mock_service.users().getProfile().execute.return_value = {
@@ -37,7 +30,8 @@ def test_get_user_email_returns_email_address():
     assert result == 'user@example.com'
 
 
-def test_list_user_labels_filters_to_user_type_and_sorts_by_name():
+@test
+def list_user_labels_filters_to_user_type_and_sorts_by_name():
     mock_service = MagicMock()
     mock_service.users().labels().list().execute.return_value = {
         'labels': [
@@ -51,22 +45,22 @@ def test_list_user_labels_filters_to_user_type_and_sorts_by_name():
     assert all(label['type'] == 'user' for label in result)
 
 
-@pytest.mark.parametrize(
-    'response, expected',
+@test_params(
     [
         ({'messages': [{'id': 'm1'}]}, True),
         ({'messages': []}, False),
         ({}, False),
-    ],
+    ]
 )
-def test_label_has_recent_message(response, expected):
+def label_has_recent_message(response, expected):
     mock_service = MagicMock()
     mock_service.users().messages().list().execute.return_value = response
     result = gmail.label_has_recent_message(mock_service, 'Label_1', '2y')
     assert result is expected
 
 
-def test_label_has_recent_message_passes_label_id_and_age():
+@test
+def label_has_recent_message_passes_label_id_and_age():
     mock_service = MagicMock()
     mock_service.users().messages().list().execute.return_value = {
         'messages': [{'id': 'm1'}],
@@ -80,7 +74,8 @@ def test_label_has_recent_message_passes_label_id_and_age():
     )
 
 
-def test_find_old_labels_returns_old_labels_and_total():
+@test
+def find_old_labels_returns_old_labels_and_total():
     mock_creds = MagicMock()
     labels = [
         {'id': 'L1', 'name': 'Apple', 'type': 'user'},
@@ -104,7 +99,8 @@ def test_find_old_labels_returns_old_labels_and_total():
     assert total == 3
 
 
-def test_search_messages_returns_ids_and_estimate():
+@test
+def search_messages_returns_ids_and_estimate():
     mock_creds = MagicMock()
     mock_service = MagicMock()
     mock_service.users().messages().list().execute.return_value = {
@@ -121,7 +117,8 @@ def test_search_messages_returns_ids_and_estimate():
     assert estimate == 42
 
 
-def test_search_messages_handles_empty_response():
+@test
+def search_messages_handles_empty_response():
     mock_creds = MagicMock()
     mock_service = MagicMock()
     mock_service.users().messages().list().execute.return_value = {
@@ -137,7 +134,8 @@ def test_search_messages_handles_empty_response():
     assert estimate == 0
 
 
-def test_search_messages_passes_query_and_max_results():
+@test
+def search_messages_passes_query_and_max_results():
     mock_creds = MagicMock()
     mock_service = MagicMock()
     mock_service.users().messages().list().execute.return_value = {
@@ -152,7 +150,8 @@ def test_search_messages_passes_query_and_max_results():
     )
 
 
-def test_iter_message_headers_extracts_three_headers():
+@test
+def iter_message_headers_extracts_three_headers():
     mock_creds = MagicMock()
     mock_service = MagicMock()
     mock_service.users().messages().get().execute.return_value = {
@@ -176,7 +175,8 @@ def test_iter_message_headers_extracts_three_headers():
     ]
 
 
-def test_iter_message_headers_missing_headers_default_to_empty_string():
+@test
+def iter_message_headers_missing_headers_default_to_empty_string():
     mock_creds = MagicMock()
     mock_service = MagicMock()
     mock_service.users().messages().get().execute.return_value = {
@@ -187,7 +187,8 @@ def test_iter_message_headers_missing_headers_default_to_empty_string():
     assert results == [{'Date': '', 'From': '', 'Subject': ''}]
 
 
-def test_iter_message_headers_uses_metadata_format():
+@test
+def iter_message_headers_uses_metadata_format():
     mock_creds = MagicMock()
     mock_service = MagicMock()
     mock_service.users().messages().get().execute.return_value = {
@@ -203,7 +204,8 @@ def test_iter_message_headers_uses_metadata_format():
     )
 
 
-def test_iter_message_headers_builds_service_once():
+@test
+def iter_message_headers_builds_service_once():
     mock_creds = MagicMock()
     mock_service = MagicMock()
     mock_service.users().messages().get().execute.return_value = {
@@ -217,55 +219,64 @@ def test_iter_message_headers_builds_service_once():
     assert mock_build.call_count == 1
 
 
-def test_with_retry_returns_value_on_first_success():
+@test
+def with_retry_returns_value_on_first_success():
     result = gmail.with_retry(lambda: 'ok')
     assert result == 'ok'
 
 
-@use(no_sleep)
-def test_with_retry_retries_on_5xx():
-    func = MagicMock(
-        side_effect=[
-            HttpError(MagicMock(status=503), b''),
-            'ok',
-        ],
-    )
-    assert gmail.with_retry(func) == 'ok'
+@test
+def with_retry_retries_on_5xx():
+    with patch('gmail_cleaner.gmail.time.sleep', lambda _s: None):
+        func = MagicMock(
+            side_effect=[
+                HttpError(MagicMock(status=503), b''),
+                'ok',
+            ],
+        )
+        assert gmail.with_retry(func) == 'ok'
     assert func.call_count == 2
 
 
-@use(no_sleep)
-def test_with_retry_retries_on_429():
-    func = MagicMock(
-        side_effect=[
-            HttpError(MagicMock(status=429), b''),
-            'ok',
-        ],
-    )
-    assert gmail.with_retry(func) == 'ok'
+@test
+def with_retry_retries_on_429():
+    with patch('gmail_cleaner.gmail.time.sleep', lambda _s: None):
+        func = MagicMock(
+            side_effect=[
+                HttpError(MagicMock(status=429), b''),
+                'ok',
+            ],
+        )
+        assert gmail.with_retry(func) == 'ok'
 
 
-def test_with_retry_does_not_retry_on_403():
+@test
+def with_retry_does_not_retry_on_403():
     err = HttpError(MagicMock(status=403), b'')
     func = MagicMock(side_effect=err)
-    with pytest.raises(HttpError):
+    with catch_exceptions() as excs:
         gmail.with_retry(func)
+    assert type(excs[0]) is HttpError
     assert func.call_count == 1
 
 
-def test_with_retry_does_not_retry_on_value_error():
+@test
+def with_retry_does_not_retry_on_value_error():
     func = MagicMock(side_effect=ValueError('bug'))
-    with pytest.raises(ValueError):
+    with catch_exceptions() as excs:
         gmail.with_retry(func)
+    assert type(excs[0]) is ValueError
     assert func.call_count == 1
 
 
-@use(no_sleep)
-def test_with_retry_raises_after_all_attempts_fail():
-    err = HttpError(MagicMock(status=500), b'')
-    func = MagicMock(side_effect=err)
-    with pytest.raises(HttpError):
-        gmail.with_retry(func)
+@test
+def with_retry_raises_after_all_attempts_fail():
+    with patch('gmail_cleaner.gmail.time.sleep', lambda _s: None):
+        err = HttpError(MagicMock(status=500), b'')
+        func = MagicMock(side_effect=err)
+        with catch_exceptions() as excs:
+            gmail.with_retry(func)
+    assert type(excs[0]) is HttpError
     assert func.call_count == 3
 
 
@@ -275,12 +286,14 @@ def _http_error_with_retry_after(value: str) -> HttpError:
     return HttpError(resp, b'')
 
 
-def test_retry_after_seconds_parses_integer():
+@test
+def retry_after_seconds_parses_integer():
     exc = _http_error_with_retry_after('30')
     assert gmail._retry_after_seconds(exc) == 30.0
 
 
-def test_retry_after_seconds_parses_http_date():
+@test
+def retry_after_seconds_parses_http_date():
     from datetime import datetime, timedelta, timezone
 
     target = datetime.now(timezone.utc) + timedelta(seconds=45)
@@ -290,47 +303,53 @@ def test_retry_after_seconds_parses_http_date():
     assert 30.0 < result < 60.0
 
 
-def test_retry_after_seconds_returns_none_when_missing():
+@test
+def retry_after_seconds_returns_none_when_missing():
     resp = MagicMock(status=429)
     resp.headers = {}
     assert gmail._retry_after_seconds(HttpError(resp, b'')) is None
 
 
-def test_retry_after_seconds_returns_none_for_non_http_error():
+@test
+def retry_after_seconds_returns_none_for_non_http_error():
     assert gmail._retry_after_seconds(OSError('boom')) is None
 
 
-def test_retry_after_seconds_returns_none_for_garbage():
+@test
+def retry_after_seconds_returns_none_for_garbage():
     assert (
         gmail._retry_after_seconds(_http_error_with_retry_after('??')) is None
     )
 
 
-def test_with_retry_honors_retry_after_header(monkeypatch):
+@test
+def with_retry_honors_retry_after_header():
     sleeps: list[float] = []
-    monkeypatch.setattr(
+    with patch(
         'gmail_cleaner.gmail.time.sleep',
         lambda seconds: sleeps.append(seconds),
-    )
-    err = _http_error_with_retry_after('7')
-    func = MagicMock(side_effect=[err, 'ok'])
-    assert gmail.with_retry(func) == 'ok'
+    ):
+        err = _http_error_with_retry_after('7')
+        func = MagicMock(side_effect=[err, 'ok'])
+        assert gmail.with_retry(func) == 'ok'
     assert sleeps == [7.0]
 
 
-def test_with_retry_falls_back_to_default_delay(monkeypatch):
+@test
+def with_retry_falls_back_to_default_delay():
     sleeps: list[float] = []
-    monkeypatch.setattr(
+    with patch(
         'gmail_cleaner.gmail.time.sleep',
         lambda seconds: sleeps.append(seconds),
-    )
-    err = HttpError(MagicMock(status=500, headers={}), b'')
-    func = MagicMock(side_effect=[err, 'ok'])
-    assert gmail.with_retry(func) == 'ok'
+    ):
+        err = HttpError(MagicMock(status=500, headers={}), b'')
+        func = MagicMock(side_effect=[err, 'ok'])
+        assert gmail.with_retry(func) == 'ok'
     assert sleeps == [gmail._RETRY_DELAYS[0]]
 
 
-def test_batch_modify_sends_ids_and_label_changes():
+@test
+def batch_modify_sends_ids_and_label_changes():
     mock_service = MagicMock()
     gmail.batch_modify(
         mock_service,
@@ -348,14 +367,16 @@ def test_batch_modify_sends_ids_and_label_changes():
     )
 
 
-def test_batch_modify_omits_empty_label_fields():
+@test
+def batch_modify_omits_empty_label_fields():
     mock_service = MagicMock()
     gmail.batch_modify(mock_service, ['m1'], remove_label_ids=['INBOX'])
     body = mock_service.users().messages().batchModify.call_args.kwargs['body']
     assert body == {'ids': ['m1'], 'removeLabelIds': ['INBOX']}
 
 
-def test_list_filters_returns_filter_list():
+@test
+def list_filters_returns_filter_list():
     mock_service = MagicMock()
     filters = [
         {'id': 'f1', 'action': {'addLabelIds': ['L1']}},
@@ -367,13 +388,15 @@ def test_list_filters_returns_filter_list():
     assert gmail.list_filters(mock_service) == filters
 
 
-def test_list_filters_empty_response():
+@test
+def list_filters_empty_response():
     mock_service = MagicMock()
     mock_service.users().settings().filters().list().execute.return_value = {}
     assert gmail.list_filters(mock_service) == []
 
 
-def test_delete_filter_calls_api():
+@test
+def delete_filter_calls_api():
     mock_service = MagicMock()
     gmail.delete_filter(mock_service, 'f1')
     mock_service.users().settings().filters().delete.assert_called_with(
@@ -382,22 +405,24 @@ def test_delete_filter_calls_api():
     )
 
 
-@use(no_sleep)
-def test_delete_filter_retries_on_5xx():
-    mock_service = MagicMock()
-    err = HttpError(MagicMock(status=500), b'')
-    mock_service.users().settings().filters().delete().execute.side_effect = [
-        err,
-        None,
-    ]
-    gmail.delete_filter(mock_service, 'f1')
+@test
+def delete_filter_retries_on_5xx():
+    with patch('gmail_cleaner.gmail.time.sleep', lambda _s: None):
+        mock_service = MagicMock()
+        err = HttpError(MagicMock(status=500), b'')
+        mock_service.users().settings().filters().delete().execute.side_effect = [
+            err,
+            None,
+        ]
+        gmail.delete_filter(mock_service, 'f1')
     assert (
         mock_service.users().settings().filters().delete().execute.call_count
         == 2
     )
 
 
-def test_create_filter_calls_api_and_returns_created():
+@test
+def create_filter_calls_api_and_returns_created():
     mock_service = MagicMock()
     created = {'id': 'f9', 'criteria': {'from': 'x@y'}, 'action': {}}
     mock_service.users().settings().filters().create().execute.return_value = (
@@ -411,7 +436,8 @@ def test_create_filter_calls_api_and_returns_created():
     )
 
 
-def test_create_label_calls_api_and_returns_created():
+@test
+def create_label_calls_api_and_returns_created():
     mock_service = MagicMock()
     created = {'id': 'L9', 'name': 'MyLabel'}
     mock_service.users().labels().create().execute.return_value = created
@@ -423,30 +449,35 @@ def test_create_label_calls_api_and_returns_created():
     )
 
 
-def test_create_label_does_not_retry_on_5xx():
+@test
+def create_label_does_not_retry_on_5xx():
     mock_service = MagicMock()
     err = HttpError(MagicMock(status=503), b'')
     mock_service.users().labels().create().execute.side_effect = err
-    with pytest.raises(HttpError):
+    with catch_exceptions() as excs:
         gmail.create_label(mock_service, {'name': 'X'})
+    assert type(excs[0]) is HttpError
     assert mock_service.users().labels().create().execute.call_count == 1
 
 
-def test_create_filter_does_not_retry_on_5xx():
+@test
+def create_filter_does_not_retry_on_5xx():
     mock_service = MagicMock()
     err = HttpError(MagicMock(status=503), b'')
     mock_service.users().settings().filters().create().execute.side_effect = (
         err
     )
-    with pytest.raises(HttpError):
+    with catch_exceptions() as excs:
         gmail.create_filter(mock_service, {'criteria': {}, 'action': {}})
+    assert type(excs[0]) is HttpError
     assert (
         mock_service.users().settings().filters().create().execute.call_count
         == 1
     )
 
 
-def test_get_filter_calls_api_and_returns_filter():
+@test
+def get_filter_calls_api_and_returns_filter():
     mock_service = MagicMock()
     filt = {'id': 'f9', 'criteria': {}, 'action': {}}
     mock_service.users().settings().filters().get().execute.return_value = filt
@@ -457,7 +488,8 @@ def test_get_filter_calls_api_and_returns_filter():
     )
 
 
-def test_iter_message_ids_single_page():
+@test
+def iter_message_ids_single_page():
     mock_service = MagicMock()
     mock_service.users().messages().list().execute.return_value = {
         'messages': [{'id': 'm1'}, {'id': 'm2'}],
@@ -469,7 +501,8 @@ def test_iter_message_ids_single_page():
     ]
 
 
-def test_iter_message_ids_paginates():
+@test
+def iter_message_ids_paginates():
     mock_service = MagicMock()
     page1 = {'messages': [{'id': 'm1'}], 'nextPageToken': 'tok'}
     page2 = {'messages': [{'id': 'm2'}]}
@@ -491,14 +524,16 @@ def test_iter_message_ids_paginates():
     ]
 
 
-def test_iter_message_ids_empty():
+@test
+def iter_message_ids_empty():
     mock_service = MagicMock()
     mock_service.users().messages().list().execute.return_value = {}
     mock_service.users().messages().list_next.return_value = None
     assert list(gmail.iter_message_ids(mock_service, query='in:inbox')) == []
 
 
-def test_iter_message_ids_is_lazy():
+@test
+def iter_message_ids_is_lazy():
     mock_service = MagicMock()
     page1 = {'messages': [{'id': 'm1'}], 'nextPageToken': 'tok'}
     page2 = {'messages': [{'id': 'm2'}]}
@@ -522,8 +557,7 @@ def test_iter_message_ids_is_lazy():
     assert second_request.execute.call_count == 1
 
 
-@pytest.mark.parametrize(
-    'kwargs, expected',
+@test_params(
     [
         (
             {'query': 'in:inbox', 'label_ids': None},
@@ -537,7 +571,7 @@ def test_iter_message_ids_is_lazy():
             {'query': None, 'label_ids': None},
             {'userId': 'me', 'maxResults': 500},
         ),
-    ],
+    ]
 )
-def test_list_messages_kwargs_omits_none_values(kwargs, expected):
+def list_messages_kwargs_omits_none_values(kwargs, expected):
     assert gmail.list_messages_kwargs(**kwargs) == expected

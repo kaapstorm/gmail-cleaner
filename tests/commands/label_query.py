@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock, patch
 
+from testsweet import test
 from typer.testing import CliRunner
 
 from gmail_cleaner.cleanup import LabelLookup, Preview, ScanResult
@@ -16,7 +17,8 @@ def _lookup(estimate=3, has_messages=True):
     )
 
 
-def test_label_query_not_logged_in_exits_with_error():
+@test
+def label_query_not_logged_in_exits_with_error():
     with patch('gmail_cleaner.auth.load_token', return_value=None):
         result = runner.invoke(
             app,
@@ -26,7 +28,8 @@ def test_label_query_not_logged_in_exits_with_error():
     assert 'Not logged in' in (result.stdout + (result.stderr or ''))
 
 
-def test_label_query_missing_label_exits_with_error():
+@test
+def label_query_missing_label_exits_with_error():
     creds = MagicMock()
     with (
         patch('gmail_cleaner.auth.load_token', return_value=creds),
@@ -43,7 +46,8 @@ def test_label_query_missing_label_exits_with_error():
     assert 'Label not found: Nope' in (result.stdout + (result.stderr or ''))
 
 
-def test_label_query_no_matches_exits_cleanly():
+@test
+def label_query_no_matches_exits_cleanly():
     creds = MagicMock()
     with (
         patch('gmail_cleaner.auth.load_token', return_value=creds),
@@ -68,7 +72,8 @@ def test_label_query_no_matches_exits_cleanly():
     label_match.assert_not_called()
 
 
-def test_label_query_aborted_by_user():
+@test
+def label_query_aborted_by_user():
     creds = MagicMock()
     with (
         patch('gmail_cleaner.auth.load_token', return_value=creds),
@@ -93,7 +98,8 @@ def test_label_query_aborted_by_user():
     label_match.assert_not_called()
 
 
-def test_label_query_labels_messages():
+@test
+def label_query_labels_messages():
     creds = MagicMock()
     with (
         patch('gmail_cleaner.auth.load_token', return_value=creds),
@@ -122,7 +128,8 @@ def test_label_query_labels_messages():
     assert 'Labeled 3 messages' in result.stderr
 
 
-def test_label_query_dry_run_does_not_require_scan():
+@test
+def label_query_dry_run_does_not_require_scan():
     creds = MagicMock()
     with (
         patch('gmail_cleaner.auth.load_token', return_value=creds),
@@ -154,7 +161,8 @@ def test_label_query_dry_run_does_not_require_scan():
     assert '5 matches' in result.stdout
 
 
-def test_label_query_force_skips_confirmation():
+@test
+def label_query_force_skips_confirmation():
     creds = MagicMock()
     with (
         patch('gmail_cleaner.auth.load_token', return_value=creds),

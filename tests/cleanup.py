@@ -1,24 +1,13 @@
 from unittest.mock import MagicMock, patch
 
-import pytest
 from googleapiclient.errors import HttpError
-from unmagic import fixture, use
+from testsweet import catch_exceptions, test
 
 from gmail_cleaner import cleanup
 
-monkeypatch = fixture('monkeypatch')
 
-
-@fixture
-def no_sleep():
-    monkeypatch().setattr(
-        'gmail_cleaner.gmail.time.sleep',
-        lambda _s: None,
-    )
-    yield
-
-
-def test_delete_message_batches_groups_by_1000():
+@test
+def delete_message_batches_groups_by_1000():
     mock_service = MagicMock()
     ids = [f'm{i}' for i in range(1500)]
     progress: list[int] = []
@@ -35,7 +24,8 @@ def test_delete_message_batches_groups_by_1000():
     assert total == 1500
 
 
-def test_delete_message_batches_empty_is_noop():
+@test
+def delete_message_batches_empty_is_noop():
     mock_service = MagicMock()
     progress: list[int] = []
     total = cleanup._delete_message_batches(
@@ -48,7 +38,8 @@ def test_delete_message_batches_empty_is_noop():
     assert total == 0
 
 
-def test_delete_message_batches_consumes_generator():
+@test
+def delete_message_batches_consumes_generator():
     def gen():
         yield from (f'm{i}' for i in range(3))
 
@@ -62,39 +53,43 @@ def test_delete_message_batches_consumes_generator():
     assert mock_service.users().messages().batchDelete.call_count == 1
 
 
-@use(no_sleep)
-def test_delete_message_batches_retries_failed_batch():
-    mock_service = MagicMock()
-    err = HttpError(MagicMock(status=500), b'')
-    mock_service.users().messages().batchDelete().execute.side_effect = [
-        err,
-        None,
-    ]
-    total = cleanup._delete_message_batches(
-        mock_service,
-        ['m1'],
-        on_progress=lambda _d: None,
-    )
+@test
+def delete_message_batches_retries_failed_batch():
+    with patch('gmail_cleaner.gmail.time.sleep', lambda _s: None):
+        mock_service = MagicMock()
+        err = HttpError(MagicMock(status=500), b'')
+        mock_service.users().messages().batchDelete().execute.side_effect = [
+            err,
+            None,
+        ]
+        total = cleanup._delete_message_batches(
+            mock_service,
+            ['m1'],
+            on_progress=lambda _d: None,
+        )
     assert total == 1
     assert (
         mock_service.users().messages().batchDelete().execute.call_count == 2
     )
 
 
-@use(no_sleep)
-def test_delete_message_batches_propagates_after_retries():
-    mock_service = MagicMock()
-    err = HttpError(MagicMock(status=500), b'')
-    mock_service.users().messages().batchDelete().execute.side_effect = err
-    with pytest.raises(HttpError):
-        cleanup._delete_message_batches(
-            mock_service,
-            (f'm{i}' for i in range(600)),  # forces 2 batches
-            on_progress=lambda _d: None,
-        )
+@test
+def delete_message_batches_propagates_after_retries():
+    with patch('gmail_cleaner.gmail.time.sleep', lambda _s: None):
+        mock_service = MagicMock()
+        err = HttpError(MagicMock(status=500), b'')
+        mock_service.users().messages().batchDelete().execute.side_effect = err
+        with catch_exceptions() as excs:
+            cleanup._delete_message_batches(
+                mock_service,
+                (f'm{i}' for i in range(600)),  # forces 2 batches
+                on_progress=lambda _d: None,
+            )
+    assert type(excs[0]) is HttpError
 
 
-def test_scan_for_messages_returns_estimate_and_has_results():
+@test
+def scan_for_messages_returns_estimate_and_has_results():
     creds = MagicMock()
     mock_service = MagicMock()
     mock_service.users().messages().list().execute.return_value = {
@@ -111,7 +106,8 @@ def test_scan_for_messages_returns_estimate_and_has_results():
     assert has_results is True
 
 
-def test_scan_for_messages_empty_first_page_no_token():
+@test
+def scan_for_messages_empty_first_page_no_token():
     creds = MagicMock()
     mock_service = MagicMock()
     mock_service.users().messages().list().execute.return_value = {
@@ -126,7 +122,8 @@ def test_scan_for_messages_empty_first_page_no_token():
     assert has_results is False
 
 
-def test_scan_for_messages_empty_first_page_with_token():
+@test
+def scan_for_messages_empty_first_page_with_token():
     creds = MagicMock()
     mock_service = MagicMock()
     mock_service.users().messages().list().execute.return_value = {
@@ -142,7 +139,8 @@ def test_scan_for_messages_empty_first_page_with_token():
     assert has_results is True
 
 
-def test_scan_for_messages_messages_present_estimate_zero():
+@test
+def scan_for_messages_messages_present_estimate_zero():
     creds = MagicMock()
     mock_service = MagicMock()
     mock_service.users().messages().list().execute.return_value = {
@@ -158,7 +156,8 @@ def test_scan_for_messages_messages_present_estimate_zero():
     assert has_results is True
 
 
-def test_delete_messages_matching_paginates_and_deletes():
+@test
+def delete_messages_matching_paginates_and_deletes():
     creds = MagicMock()
     mock_service = MagicMock()
     mock_service.users().messages().list().execute.return_value = {
@@ -180,7 +179,8 @@ def test_delete_messages_matching_paginates_and_deletes():
     mock_service.users().messages().batchDelete.assert_called_once()
 
 
-def test_delete_messages_matching_empty():
+@test
+def delete_messages_matching_empty():
     creds = MagicMock()
     mock_service = MagicMock()
     mock_service.users().messages().list().execute.return_value = {}
@@ -198,7 +198,8 @@ def test_delete_messages_matching_empty():
     mock_service.users().messages().batchDelete.assert_not_called()
 
 
-def test_modify_message_batches_groups_by_1000():
+@test
+def modify_message_batches_groups_by_1000():
     mock_service = MagicMock()
     ids = [f'm{i}' for i in range(1500)]
     progress: list[int] = []
@@ -220,7 +221,8 @@ def test_modify_message_batches_groups_by_1000():
     assert total == 1500
 
 
-def test_modify_message_batches_empty_is_noop():
+@test
+def modify_message_batches_empty_is_noop():
     mock_service = MagicMock()
     total = cleanup._modify_message_batches(
         mock_service,
@@ -232,7 +234,8 @@ def test_modify_message_batches_empty_is_noop():
     assert total == 0
 
 
-def test_archive_messages_matching_removes_inbox_label():
+@test
+def archive_messages_matching_removes_inbox_label():
     creds = MagicMock()
     mock_service = MagicMock()
     mock_service.users().messages().list().execute.return_value = {
@@ -254,7 +257,8 @@ def test_archive_messages_matching_removes_inbox_label():
     assert body['ids'] == ['m1', 'm2']
 
 
-def test_label_messages_matching_adds_label():
+@test
+def label_messages_matching_adds_label():
     creds = MagicMock()
     mock_service = MagicMock()
     mock_service.users().messages().list().execute.return_value = {
@@ -277,7 +281,8 @@ def test_label_messages_matching_adds_label():
     assert 'removeLabelIds' not in body
 
 
-def test_delete_label_by_id_calls_api():
+@test
+def delete_label_by_id_calls_api():
     mock_service = MagicMock()
     cleanup._delete_label_by_id(mock_service, 'Label_1')
     mock_service.users().labels().delete.assert_called_with(
@@ -286,16 +291,21 @@ def test_delete_label_by_id_calls_api():
     )
 
 
-@use(no_sleep)
-def test_delete_label_by_id_retries_on_5xx():
-    mock_service = MagicMock()
-    err = HttpError(MagicMock(status=500), b'')
-    mock_service.users().labels().delete().execute.side_effect = [err, None]
-    cleanup._delete_label_by_id(mock_service, 'Label_1')
+@test
+def delete_label_by_id_retries_on_5xx():
+    with patch('gmail_cleaner.gmail.time.sleep', lambda _s: None):
+        mock_service = MagicMock()
+        err = HttpError(MagicMock(status=500), b'')
+        mock_service.users().labels().delete().execute.side_effect = [
+            err,
+            None,
+        ]
+        cleanup._delete_label_by_id(mock_service, 'Label_1')
     assert mock_service.users().labels().delete().execute.call_count == 2
 
 
-def test_find_label_returns_none_when_not_found():
+@test
+def find_label_returns_none_when_not_found():
     creds = MagicMock()
     mock_service = MagicMock()
     with (
@@ -313,7 +323,8 @@ def test_find_label_returns_none_when_not_found():
         assert cleanup.find_label(creds, 'MySpace') is None
 
 
-def test_find_label_returns_label_estimate_and_has_messages():
+@test
+def find_label_returns_label_estimate_and_has_messages():
     creds = MagicMock()
     mock_service = MagicMock()
     label = {'id': 'L1', 'name': 'MySpace', 'type': 'user'}
@@ -344,7 +355,8 @@ def test_find_label_returns_label_estimate_and_has_messages():
     )
 
 
-def test_delete_label_completely_deletes_messages_filters_and_label():
+@test
+def delete_label_completely_deletes_messages_filters_and_label():
     creds = MagicMock()
     mock_service = MagicMock()
     label = {'id': 'L1', 'name': 'MySpace', 'type': 'user'}
@@ -377,7 +389,8 @@ def test_delete_label_completely_deletes_messages_filters_and_label():
     del_label.assert_called_once_with(mock_service, 'L1')
 
 
-def test_delete_label_completely_handles_filters_without_action():
+@test
+def delete_label_completely_handles_filters_without_action():
     creds = MagicMock()
     mock_service = MagicMock()
     label = {'id': 'L1', 'name': 'X', 'type': 'user'}
@@ -406,7 +419,8 @@ def test_delete_label_completely_handles_filters_without_action():
     del_filter.assert_called_once_with(mock_service, 'f3')
 
 
-def test_delete_label_completely_zero_matching_filters():
+@test
+def delete_label_completely_zero_matching_filters():
     creds = MagicMock()
     mock_service = MagicMock()
     label = {'id': 'L1', 'name': 'X', 'type': 'user'}
@@ -435,7 +449,8 @@ def test_delete_label_completely_zero_matching_filters():
     del_filter.assert_not_called()
 
 
-def test_delete_label_completely_zero_messages_still_cleans_up():
+@test
+def delete_label_completely_zero_messages_still_cleans_up():
     creds = MagicMock()
     mock_service = MagicMock()
     label = {'id': 'L1', 'name': 'X', 'type': 'user'}

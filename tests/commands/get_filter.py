@@ -1,6 +1,7 @@
 import json
 from unittest.mock import MagicMock, patch
 
+from testsweet import test
 from typer.testing import CliRunner
 
 from gmail_cleaner import filters
@@ -9,14 +10,16 @@ from gmail_cleaner.cli import app
 runner = CliRunner()
 
 
-def test_get_filter_not_logged_in_exits_with_error():
+@test
+def get_filter_not_logged_in_exits_with_error():
     with patch('gmail_cleaner.auth.load_token', return_value=None):
         result = runner.invoke(app, ['get-filter', 'f1'])
     assert result.exit_code == 1
     assert 'Not logged in' in (result.stdout + (result.stderr or ''))
 
 
-def test_get_filter_prints_single_json_line():
+@test
+def get_filter_prints_single_json_line():
     creds = MagicMock()
     record = {'id': 'f1', 'criteria': {}, 'action': {}}
     with (
@@ -32,7 +35,8 @@ def test_get_filter_prints_single_json_line():
     assert json.loads(result.stdout.strip()) == record
 
 
-def test_get_filter_missing_exits_nonzero():
+@test
+def get_filter_missing_exits_nonzero():
     creds = MagicMock()
     with (
         patch('gmail_cleaner.auth.load_token', return_value=creds),

@@ -29,16 +29,12 @@ dev = [
 ]
 test = [
     "mypy",
-    "pytest",
-    "pytest-unmagic",
     "ruff",
+    "testsweet",
 ]
 
 [tool.uv]
 package = true
-
-[tool.uv.sources]
-pytest-unmagic = { git = "https://github.com/kaapstorm/pytest-unmagic.git", branch = "nh/docs_5" }
 
 [tool.ruff]
 line-length = 79
@@ -57,7 +53,7 @@ module = [
     "google.*",
     "google_auth_oauthlib.*",
     "googleapiclient.*",
-    "unmagic.*",
+    "testsweet.*",
 ]
 ignore_missing_imports = true
 

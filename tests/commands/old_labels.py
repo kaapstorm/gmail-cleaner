@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock, patch
 
+from testsweet import test
 from typer.testing import CliRunner
 
 from gmail_cleaner.cli import app
@@ -7,14 +8,16 @@ from gmail_cleaner.cli import app
 runner = CliRunner()
 
 
-def test_old_labels_not_logged_in_exits_with_error():
+@test
+def old_labels_not_logged_in_exits_with_error():
     with patch('gmail_cleaner.auth.load_token', return_value=None):
         result = runner.invoke(app, ['old-labels'])
     assert result.exit_code == 1
     assert 'Not logged in' in (result.stdout + (result.stderr or ''))
 
 
-def test_old_labels_bad_age_exits_with_usage_error():
+@test
+def old_labels_bad_age_exits_with_usage_error():
     mock_creds = MagicMock()
     with patch('gmail_cleaner.auth.load_token', return_value=mock_creds):
         result = runner.invoke(app, ['old-labels', '--age', 'forever'])
@@ -22,7 +25,8 @@ def test_old_labels_bad_age_exits_with_usage_error():
     assert 'must look like' in result.stderr.lower()
 
 
-def test_old_labels_lists_only_labels_with_no_recent_messages():
+@test
+def old_labels_lists_only_labels_with_no_recent_messages():
     mock_creds = MagicMock()
     old = [
         {'id': 'L1', 'name': 'Apple', 'type': 'user'},
@@ -39,7 +43,8 @@ def test_old_labels_lists_only_labels_with_no_recent_messages():
     assert '2 of 3 labels have no messages newer than 2y' in result.stderr
 
 
-def test_old_labels_summary_uses_custom_age():
+@test
+def old_labels_summary_uses_custom_age():
     mock_creds = MagicMock()
     with patch('gmail_cleaner.auth.load_token', return_value=mock_creds):
         with patch(

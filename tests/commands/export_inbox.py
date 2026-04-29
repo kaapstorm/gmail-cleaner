@@ -1,11 +1,12 @@
 import json
+import tempfile
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from testsweet import test
 from typer.testing import CliRunner
-from unmagic import use
 
 from gmail_cleaner.cli import app
-from tests.fixtures import tmp_dir
 
 runner = CliRunner()
 
@@ -34,32 +35,35 @@ def _iter_records(ids):
     return _side_effect
 
 
-def test_export_inbox_not_logged_in_exits_with_error():
+@test
+def export_inbox_not_logged_in_exits_with_error():
     with patch('gmail_cleaner.auth.load_token', return_value=None):
         result = runner.invoke(app, ['export-inbox', '/tmp/out.jsonl'])
     assert result.exit_code == 1
     assert 'Not logged in' in (result.stdout + (result.stderr or ''))
 
 
-@use(tmp_dir)
-def test_export_inbox_writes_jsonl_to_file():
-    out = tmp_dir() / 'out.jsonl'
-    mock_creds = MagicMock()
-    ids = ['a', 'b', 'c']
-    with (
-        patch('gmail_cleaner.auth.load_token', return_value=mock_creds),
-        patch(
-            'gmail_cleaner.commands.export_inbox.export.iter_inbox_records',
-            side_effect=_iter_records(ids),
-        ),
-    ):
-        result = runner.invoke(app, ['export-inbox', str(out)])
-    assert result.exit_code == 0, result.output
-    lines = out.read_text().splitlines()
+@test
+def export_inbox_writes_jsonl_to_file():
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp) / 'out.jsonl'
+        mock_creds = MagicMock()
+        ids = ['a', 'b', 'c']
+        with (
+            patch('gmail_cleaner.auth.load_token', return_value=mock_creds),
+            patch(
+                'gmail_cleaner.commands.export_inbox.export.iter_inbox_records',
+                side_effect=_iter_records(ids),
+            ),
+        ):
+            result = runner.invoke(app, ['export-inbox', str(out)])
+        assert result.exit_code == 0, result.output
+        lines = out.read_text().splitlines()
     assert [json.loads(line)['id'] for line in lines] == ids
 
 
-def test_export_inbox_writes_to_stdout_when_output_is_dash():
+@test
+def export_inbox_writes_to_stdout_when_output_is_dash():
     mock_creds = MagicMock()
     ids = ['a', 'b']
     with (
@@ -75,29 +79,30 @@ def test_export_inbox_writes_to_stdout_when_output_is_dash():
     assert [json.loads(line)['id'] for line in lines] == ids
 
 
-@use(tmp_dir)
-def test_export_inbox_skips_messages_that_error():
+@test
+def export_inbox_skips_messages_that_error():
     from googleapiclient.errors import HttpError
 
-    out = tmp_dir() / 'out.jsonl'
-    mock_creds = MagicMock()
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp) / 'out.jsonl'
+        mock_creds = MagicMock()
 
-    def _side_effect(_creds, *, on_error):
-        for mid in ['a', 'b', 'c']:
-            if mid == 'b':
-                on_error(mid, HttpError(MagicMock(status=404), b''))
-                continue
-            yield _record(mid)
+        def _side_effect(_creds, *, on_error):
+            for mid in ['a', 'b', 'c']:
+                if mid == 'b':
+                    on_error(mid, HttpError(MagicMock(status=404), b''))
+                    continue
+                yield _record(mid)
 
-    with (
-        patch('gmail_cleaner.auth.load_token', return_value=mock_creds),
-        patch(
-            'gmail_cleaner.commands.export_inbox.export.iter_inbox_records',
-            side_effect=_side_effect,
-        ),
-    ):
-        result = runner.invoke(app, ['export-inbox', str(out)])
-    assert result.exit_code == 0, result.output
-    lines = out.read_text().splitlines()
+        with (
+            patch('gmail_cleaner.auth.load_token', return_value=mock_creds),
+            patch(
+                'gmail_cleaner.commands.export_inbox.export.iter_inbox_records',
+                side_effect=_side_effect,
+            ),
+        ):
+            result = runner.invoke(app, ['export-inbox', str(out)])
+        assert result.exit_code == 0, result.output
+        lines = out.read_text().splitlines()
     assert [json.loads(line)['id'] for line in lines] == ['a', 'c']
     assert 'skipped b' in result.stderr

@@ -1,12 +1,13 @@
 from unittest.mock import MagicMock, patch
 
-import pytest
 from googleapiclient.errors import HttpError
+from testsweet import catch_exceptions, test
 
 from gmail_cleaner import labels
 
 
-def test_list_labels_returns_user_labels():
+@test
+def list_labels_returns_user_labels():
     creds = MagicMock()
     service = MagicMock()
     user_labels = [{'id': 'L1', 'name': 'A'}, {'id': 'L2', 'name': 'B'}]
@@ -23,7 +24,8 @@ def test_list_labels_returns_user_labels():
     mock_list.assert_called_once_with(service)
 
 
-def test_create_labels_creates_each_and_returns_created_list():
+@test
+def create_labels_creates_each_and_returns_created_list():
     creds = MagicMock()
     service = MagicMock()
     inputs = [{'name': 'A'}, {'name': 'B'}]
@@ -41,7 +43,8 @@ def test_create_labels_creates_each_and_returns_created_list():
     assert mock_create.call_count == 2
 
 
-def test_create_labels_midbatch_failure_reports_partial():
+@test
+def create_labels_midbatch_failure_reports_partial():
     creds = MagicMock()
     service = MagicMock()
     good = {'id': 'L1', 'name': 'A'}
@@ -55,15 +58,17 @@ def test_create_labels_midbatch_failure_reports_partial():
             'gmail_cleaner.labels.gmail.create_label',
             side_effect=[good, err],
         ),
-        pytest.raises(labels.CreateLabelsError) as exc_info,
+        catch_exceptions() as excs,
     ):
         labels.create_labels(creds, inputs)
-    assert exc_info.value.created == [good]
-    assert exc_info.value.failed_index == 1
-    assert exc_info.value.__cause__ is err
+    assert type(excs[0]) is labels.CreateLabelsError
+    assert excs[0].created == [good]
+    assert excs[0].failed_index == 1
+    assert excs[0].__cause__ is err
 
 
-def test_create_labels_empty_input_returns_empty_list():
+@test
+def create_labels_empty_input_returns_empty_list():
     creds = MagicMock()
     with patch(
         'gmail_cleaner.labels.gmail.build_service',

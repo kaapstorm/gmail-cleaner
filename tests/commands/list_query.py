@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock, patch
 
-import pytest
+from testsweet import test, test_params
 from typer.testing import CliRunner
 
 from gmail_cleaner.cli import app
@@ -12,14 +12,16 @@ def _headers(date, sender, subject):
     return {'Date': date, 'From': sender, 'Subject': subject}
 
 
-def test_list_query_not_logged_in_exits_with_error():
+@test
+def list_query_not_logged_in_exits_with_error():
     with patch('gmail_cleaner.auth.load_token', return_value=None):
         result = runner.invoke(app, ['list-query', 'in:inbox'])
     assert result.exit_code == 1
     assert 'Not logged in' in (result.stdout + (result.stderr or ''))
 
 
-def test_list_query_zero_matches():
+@test
+def list_query_zero_matches():
     mock_creds = MagicMock()
     with patch('gmail_cleaner.auth.load_token', return_value=mock_creds):
         with patch(
@@ -38,8 +40,7 @@ def _iter_returning(headers):
     return _side_effect
 
 
-@pytest.mark.parametrize(
-    'ids, estimate, expected_count_line',
+@test_params(
     [
         # Under cap: exact count.
         (['m1', 'm2', 'm3'], 3, '3 matches'),
@@ -47,9 +48,9 @@ def _iter_returning(headers):
         ([f'm{i}' for i in range(100)], 7, '100+ matches'),
         # Cap hit, high estimate: "About N matches".
         ([f'm{i}' for i in range(100)], 543, 'About 543 matches'),
-    ],
+    ]
 )
-def test_list_query_count_line(ids, estimate, expected_count_line):
+def list_query_count_line(ids, estimate, expected_count_line):
     mock_creds = MagicMock()
     headers = _headers('Mon, 13 Apr 2026 14:30:00 -0400', 'a@x', 'Hi')
     with patch('gmail_cleaner.auth.load_token', return_value=mock_creds):
@@ -66,7 +67,8 @@ def test_list_query_count_line(ids, estimate, expected_count_line):
     assert result.stdout.splitlines()[0] == expected_count_line
 
 
-def test_list_query_prints_first_ten_messages_only():
+@test
+def list_query_prints_first_ten_messages_only():
     mock_creds = MagicMock()
     ids = [f'm{i}' for i in range(15)]
     headers = _headers('Mon, 13 Apr 2026 14:30:00 -0400', 'a@x', 'Hi')
@@ -93,7 +95,8 @@ def test_list_query_prints_first_ten_messages_only():
     assert captured_ids == [ids[:10]]
 
 
-def test_list_query_formats_message_line():
+@test
+def list_query_formats_message_line():
     mock_creds = MagicMock()
     headers = _headers(
         'Mon, 13 Apr 2026 14:30:00 -0400',
@@ -115,16 +118,15 @@ def test_list_query_formats_message_line():
     assert lines[2] == ('2026-04-13  Alice <alice@example.com>  Hello world')
 
 
-@pytest.mark.parametrize(
-    'bad_date',
+@test_params(
     [
         # parsedate_to_datetime raises TypeError (unparseable garbage).
-        'not a real date',
+        ('not a real date',),
         # parsedate_to_datetime raises ValueError (parseable but invalid).
-        'Mon, 99 Abc 2026 14:30:00 -0400',
-    ],
+        ('Mon, 99 Abc 2026 14:30:00 -0400',),
+    ]
 )
-def test_list_query_falls_back_to_raw_date_on_parse_failure(bad_date):
+def list_query_falls_back_to_raw_date_on_parse_failure(bad_date):
     mock_creds = MagicMock()
     headers = _headers(bad_date, 'a@x', 'Hi')
     with patch('gmail_cleaner.auth.load_token', return_value=mock_creds):

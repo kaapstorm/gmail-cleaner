@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock, patch
 
+from testsweet import test
 from typer.testing import CliRunner
 
 from gmail_cleaner.cleanup import Preview, ScanResult
@@ -8,14 +9,16 @@ from gmail_cleaner.cli import app
 runner = CliRunner()
 
 
-def test_delete_query_not_logged_in_exits_with_error():
+@test
+def delete_query_not_logged_in_exits_with_error():
     with patch('gmail_cleaner.auth.load_token', return_value=None):
         result = runner.invoke(app, ['delete-query', 'in:inbox'])
     assert result.exit_code == 1
     assert 'Not logged in' in (result.stdout + (result.stderr or ''))
 
 
-def test_delete_query_no_matches_exits_cleanly():
+@test
+def delete_query_no_matches_exits_cleanly():
     creds = MagicMock()
     with (
         patch('gmail_cleaner.auth.load_token', return_value=creds),
@@ -33,7 +36,8 @@ def test_delete_query_no_matches_exits_cleanly():
     del_match.assert_not_called()
 
 
-def test_delete_query_aborted_by_user():
+@test
+def delete_query_aborted_by_user():
     creds = MagicMock()
     with (
         patch('gmail_cleaner.auth.load_token', return_value=creds),
@@ -50,7 +54,8 @@ def test_delete_query_aborted_by_user():
     del_match.assert_not_called()
 
 
-def test_delete_query_deletes():
+@test
+def delete_query_deletes():
     creds = MagicMock()
     with (
         patch('gmail_cleaner.auth.load_token', return_value=creds),
@@ -69,7 +74,8 @@ def test_delete_query_deletes():
     assert 'Deleted 3 messages' in result.stderr
 
 
-def test_delete_query_dry_run_shows_count_and_sample():
+@test
+def delete_query_dry_run_shows_count_and_sample():
     creds = MagicMock()
     with (
         patch('gmail_cleaner.auth.load_token', return_value=creds),
@@ -111,7 +117,8 @@ def test_delete_query_dry_run_shows_count_and_sample():
     assert 'bogus  Bob  Weekly digest' in result.stdout
 
 
-def test_delete_query_dry_run_no_matches_still_shows_zero():
+@test
+def delete_query_dry_run_no_matches_still_shows_zero():
     creds = MagicMock()
     with (
         patch('gmail_cleaner.auth.load_token', return_value=creds),
@@ -128,7 +135,8 @@ def test_delete_query_dry_run_no_matches_still_shows_zero():
     assert '0 matches' in result.stdout
 
 
-def test_delete_query_force_skips_confirmation():
+@test
+def delete_query_force_skips_confirmation():
     creds = MagicMock()
     with (
         patch('gmail_cleaner.auth.load_token', return_value=creds),
