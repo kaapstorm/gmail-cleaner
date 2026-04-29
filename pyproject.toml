@@ -36,6 +36,9 @@ test = [
 [tool.uv]
 package = true
 
+[tool.uv.sources]
+testsweet = { git = "https://github.com/kaapstorm/testsweet" }
+
 [tool.ruff]
 line-length = 79
 
@@ -53,7 +56,6 @@ module = [
     "google.*",
     "google_auth_oauthlib.*",
     "googleapiclient.*",
-    "testsweet.*",
 ]
 ignore_missing_imports = true
 

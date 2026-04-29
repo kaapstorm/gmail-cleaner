@@ -59,7 +59,7 @@ run commands in the virtualenv.
 
 * Python: `uv run python3 ...`
 * Run tests: `uv run python -m testsweet [path/to/file.py]`
-* Check typing: `uv run mypy [path/to/file.py`
+* Check typing: `uv run mypy gmail_cleaner/ tests/`
 * Check linting: `uv run ruff check`
 * Sort imports: `uv run ruff check --select I --fix <path/to/file.py>`
 * Format: `uv run ruff format <path/to/file.py>`

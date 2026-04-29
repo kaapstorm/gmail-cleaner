@@ -117,7 +117,7 @@ def create_filter_midbatch_failure_prints_created_and_exits_nonzero():
     with tempfile.TemporaryDirectory() as tmp:
         creds = MagicMock()
         path = Path(tmp) / 'filters.jsonl'
-        inputs = [
+        inputs: list[dict] = [
             {'criteria': {'from': 'a@x'}, 'action': {}},
             {'bogus': True},
         ]

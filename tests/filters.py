@@ -93,7 +93,10 @@ def create_filters_midbatch_failure_reports_partial():
     service = MagicMock()
     good = {'id': 'f1', 'criteria': {'from': 'a@x'}, 'action': {}}
     err = HttpError(MagicMock(status=400), b'bad filter')
-    inputs = [{'criteria': {'from': 'a@x'}, 'action': {}}, {'bogus': True}]
+    inputs: list[dict] = [
+        {'criteria': {'from': 'a@x'}, 'action': {}},
+        {'bogus': True},
+    ]
     with (
         patch('gmail_cleaner.gmail.build_service', return_value=service),
         patch(

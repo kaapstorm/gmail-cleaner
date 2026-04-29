@@ -1,5 +1,6 @@
 import json
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 
 import typer
@@ -9,7 +10,7 @@ from gmail_cleaner import auth, filters
 STDIN_MARKER = '-'
 
 
-def _iter_input_lines(source: str):
+def _iter_input_lines(source: str) -> Iterator[str]:
     if source == STDIN_MARKER:
         for line in sys.stdin:
             yield line
